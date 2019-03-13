@@ -1,6 +1,8 @@
 from netCDF4 import Dataset
 import numpy as np
 
+from quasigeostrophic_omega import run_qg
+
 f = Dataset("data/wrfout_d01_2013-11-18_06_00_00")
 
 # for now, let's just get the data for eta=0.75 or so.
@@ -52,3 +54,4 @@ temp = f.variables['T'][timestep][0:5]
 # bullshit specs for now
 p = [900, 875, 850, 825, 800]
 
+run_qg(u=u, v=v, temp=temp, p=p, lat=lat, lon=lon)
