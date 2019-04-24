@@ -1,9 +1,9 @@
-from netCDF4 import Dataset
+import xarray as xr
 import numpy as np
 
 from quasigeostrophic_omega import run_qg
 
-f = Dataset("data/wrfout_d01_2013-11-18_06_00_00")
+f = xr.open_dataset('data/2013.11.18_regrid.nc')
 
 # for now, let's just get the data for eta=0.75 or so.
 #
@@ -36,22 +36,30 @@ f = Dataset("data/wrfout_d01_2013-11-18_06_00_00")
 #   |         |         |
 # (h-g) --- (i-g) --- (i-h)
 
-# Let's code as if we have all the data. Because fuck this noise.
-
-# For now, let's do only the first timestep.
+# For now, let's do only the first timestep. Eventually, this will
+# be a for loop.
 timestep = 0
 
-lon = f.variables['XLONG'][timestep]
-lat = f.variables['XLAT'][timestep]
+lon = f.lon
+lat = f.lat
+pressure_levels = f.levs
 
 # expect this to be a X by Y by 5 array. The middle section (3) is
 # the one we want to look at; the rest are going to be boundary conditions.
 # Yay.
-u = f.variables['U'][timestep][0:5]
-v = f.variables['V'][timestep][0:5]
-temp = f.variables['T'][timestep][0:5]
+u = f.U
+v = f.V
+w = f.W
+temp = f.TK
+q = f.Q
 
-# bullshit specs for now
-p = [900, 875, 850, 825, 800]
+# surface variables
+hfx = f.HFX
+lh = f.LH
+u10 = f.U10
+v10 = f.V10
+q2 = f.Q2
+t2 = f.T2
 
-run_qg(u=u, v=v, temp=temp, p=p, lat=lat, lon=lon)
+
+run_qg(u=u, v=v, temp=temp, pressure_levels=pressure_levels, lat=lat, lon=lon)

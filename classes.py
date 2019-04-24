@@ -1,6 +1,7 @@
 import numpy as np
 
 from functions import (
+    get_shifted_by_one,
     horizontal_gradient,
     vertical_gradient,
     laplacian,
@@ -40,9 +41,16 @@ class VectorField:
 
 class CoordinateField:
     def __init__(self, lat, lon):
-        self.coors = np.dstack(lat, lon)
+        self.coors = np.dstack((lat, lon))
 
-    def dx(self):
+        xm1, xp1, ym1, yp1 = get_shifted_by_one(self.coors)
+
+        self.xm1 = xm1
+        self.xp1 = xp1
+        self.ym1 = ym1
+        self.yp1 = yp1
+
+    def get_dx(self):
         """
         Should return a field that represents dx at that specific point
         while calculating a normal x gradient. For interior points, we calculate
@@ -50,26 +58,13 @@ class CoordinateField:
         dx as the difference between x and x+1. On the right edge, we calculate
         dx as x and x-1.
         """
-        if self.dx:
+        if hasattr(self, "dx"):
             return self.dx
 
-        # the x[i-1] array. The roll function shifts values n steps in the increasing
-        # direction. Thus, what once was at n-1 will now be at n, which is what we want!
-        xm1 = np.roll(self.coors, 1, axis=1)
-        xm1[:, 0] = self.coors[:, 0]
+        self.dx = great_circle_distance(self.xm1, self.xp1)
+        return self.dx
 
-        # the x[i+1] array. Similarly, by shifting everything over by -1, what once was at
-        # n+1 will be at n.
-        xp1 =  np.roll(self.coors, -1, axis=1)
-        xp1[:, -1] = self.coors[:, -1]
-
-        dx = great_circle_distance(xm1, xp1)
-
-        self.dx = dx
-
-        return dx
-
-    def dy(self):
+    def get_dy(self):
         """
         Should return a field that represents dx at that specific point
         while calculating a normal y gradient. For interior points, we calculate
@@ -77,16 +72,9 @@ class CoordinateField:
         dy as the difference between y and y+1. On the  edge, we calculate
         dy as y and y-1.
         """
-        if self.dy:
+        if hasattr(self, "dy"):
             return self.dy
 
-        ym1 = np.roll(self.coors, 1, axis=0)
-        ym1[0] = self.coors[0]
-
-        yp1 = np.roll(self.coors, -1, axis=0)
-        yp1[-1] = self.coors[-1]
-
-        dy = great_circle_distance(ym1, yp1)
-
-        return dy
+        self.dy = great_circle_distance(self.ym1, self.yp1)
+        return self.dy
 

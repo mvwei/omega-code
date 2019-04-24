@@ -4,7 +4,7 @@ from classes import (
     VectorField
 )
 
-def run_qg(u, v, temp, p, lat, lon):
+def run_qg(u, v, temp, pressure_levels, lat, lon):
     """
     The main equation. Takes in all pre-processed data (so that it's pointing
     in the right directions, correct vertical coordinates, etc) and outputs
@@ -12,12 +12,16 @@ def run_qg(u, v, temp, p, lat, lon):
 
     Shape: a -- b -- c -- d
 
-    lon: numpy of shape (ny, nx)
-    lat: numpy of shape (ny, nx)
+    nx: number of points along a constant latitude + constant vertical level.
+    ny: number of points along a constant longitude + constant vertical level.
+    nz: number of points, vertical stacked, along a constant lon-lat pair.
 
-    u: numpy of shape (nvert, ny, nx)
-    v: numpy of shape (nvert, ny, nx)
-    temp: numpy of shape (nvert, ny, nx)
+    lon: 1-D xarray of shape (nx)
+    lat: 1-D xarray of shape (ny)
+
+    u: numpy of shape (nz, ny, nx)
+    v: numpy of shape (nz, ny, nx)
+    temp: numpy of shape (nz, ny, nx)
     """
 
     return
