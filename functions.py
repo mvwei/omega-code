@@ -1,34 +1,43 @@
 import numpy as np
 
-# gradient function (we can either try numpy or otherwise)
+# We aren't getting fancy here. This is the numpy gradient method, which is
+# second order central finite difference in the middle and first order (forward
+# difference on the left, backward difference on the right) on the edges.
+#
+# The variable distance can either be a scalar or an array. Keep in mind
+# that the array's usage is different from numpy's gradient array usage, and is customized
+# to our use case.
+def first_derivative(f, axis, distance):
+    def gradient_helper(row):
+        """
+        Given a row of format [dx, ...data], calculate the gradient of the data
+        given dx. Not a function I'm proud of, but until apply_along_axis passes in
+        the index of the row, this is what we're doing.
+        """
+        dx = row[0]
+        actual_data = np.delete(row, 0)
 
-def get_shifted_by_one(array):
-    # the x[i-1] array. The roll function shifts values n steps in the increasing
-    # direction. Thus, what once was at n-1 will now be at n, which is what we want!
-    xm1 = np.roll(array, 1, axis=1)
-    xp1 = np.roll(array, -1, axis=1)
-    ym1 = np.roll(array, 1, axis=0)
-    yp1 = np.roll(array, -1, axis=0)
+        return np.gradient(actual_data, dx)
 
-    # now set the boundary conditions
-    xm1[:, 0] = array[:, 0]
-    xp1[:, -1] = array[:, -1]
+    # if scalar value, then just do the gradient.
+    if not np.ndims(distance):
+        return np.gradient(f, distance, axis=axis)
 
-    ym1[0] = array[0]
-    yp1[-1] = array[-1]
+    elif np.ndims(distance) == 1 and distance.size == f.shape[axis - 1]:
+        # this is cringeworthy. I will take suggestions about how to make this less
+        # bad, but from what I can tell it is impossible to concurrently iterate
+        # over two np arrays of different dimensions simultaneously. So we're just
+        # going to throw dx in as the first variable, and then pop it out in the
+        # function.
+        temp_arr = np.insert(f, 0, distance, axis=-1)
 
-    return xm1, xp1, ym1, yp1
+        return np.apply_along_axis
 
-def get_shifted_by_two(array):
-    return
+    else:
+        print("What the hell did you pass in?")
+        return
 
-def horizontal_gradient(values):
-    return
-
-def vertical_gradient(values):
-    return
-
-def laplacian(values):
+def second_derivative(f, axis):
     return
 
 def great_circle_distance(coor1, coor2):

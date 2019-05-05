@@ -44,3 +44,11 @@ def get_equidistant_lat_lon(north_lat_bound, south_lat_bound, west_lon_bound, ea
 
     return lat_array_2d, lon_array
 
+def visualize(data):
+    """
+    I don't know, what the fuck do I know?
+    """
+    return
+
+def get_2d_matrix_row(i, j, k, nx, ny):
+    return k*nx*ny + i*nx + j

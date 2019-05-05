@@ -8,10 +8,8 @@ from functions import (
     great_circle_distance,
 )
 
-# Given a three-dimensional NumPy array, make a class around this. This is
-# so that we can easily access derivative information, so that we can figure
-# out how to write some readable equations. We definitely need some readable
-# equations.
+# Given a N dimensional numpy array, here's a class that will
+# ideally give us everything we could ever want.
 class ScalarField:
     def __init__(self, np_array):
         self.values = values
@@ -25,13 +23,19 @@ class ScalarField:
     def ddp(self):
         return
 
-    def gradient(self):
+    def d2dx2(self):
+        return
+
+    def d2dy2(self):
+        return
+
+    def horizontal_gradient(self):
         return
 
     def laplacian(self):
         return
 
-# Values should be of form (a, b), corresponding to the vector ai + bj
+# Values should be of form (a, b), corresponding to the vector ai + bj.
 class VectorField:
     def __init__(self, values):
         self.values = values
@@ -39,42 +43,78 @@ class VectorField:
     def divergence(self):
         return
 
+# REMINDER: y is dimension 0, x is dimension 1.
+# lat: 1D array of latitudes.
+# lon: 1d array of longitudes.
+# lat x lon makes up our entire grid.
 class CoordinateField:
     def __init__(self, lat, lon):
-        self.coors = np.dstack((lat, lon))
+        self.nx = lon.size
+        self.ny = lat.size
 
-        xm1, xp1, ym1, yp1 = get_shifted_by_one(self.coors)
+        self.lon = lon
+        self.lat = lat
 
-        self.xm1 = xm1
-        self.xp1 = xp1
-        self.ym1 = ym1
-        self.yp1 = yp1
+        lon2d = np.tile(lon, (self.ny, 1))
+        lat2d = np.tile(lat, (self.nx, 1)).transpose()
+
+        self.coors = np.dstack((lat2d, lon2d))
+
+        self.dx = None
+        self.dy = None
 
     def get_dx(self):
         """
-        Should return a field that represents dx at that specific point
-        while calculating a normal x gradient. For interior points, we calculate
-        dx as the distance between x+1 and x-1. On the left edge, we calculate
-        dx as the difference between x and x+1. On the right edge, we calculate
-        dx as x and x-1.
+        Returns a 1D array of distances (km) between horizontal points.
+        For a given latitude, the distance between points should be the same.
+        Horizontal distance decreases as latitude increases, because globes
+        and stuff.
         """
-        if hasattr(self, "dx"):
+        if self.dx:
             return self.dx
 
-        self.dx = great_circle_distance(self.xm1, self.xp1)
+        slice1 = self.coors[:, :-1]
+        slice2 = self.coors[:, 1:]
+
+        distances = great_circle_distance(slice1, slice2)
+
+        distance_arr = distances[:, 0]
+
+        # if all is well, then the distances between points should be the same
+        # along constant latitude.
+        # Minus one because we're calculating the distance between points, and
+        # therefore we have one fewer distances than we have points.
+        expected_distances = np.tile(distance_arr, (self.nx-1, 1)).transpose()
+
+        if not np.allclose(distances, expected_distances):
+            print("Warning: longitudinal distances are not constant along constant latitude. dx is not set.")
+            return
+
+        self.dx = distance_arr
+
         return self.dx
 
     def get_dy(self):
         """
-        Should return a field that represents dx at that specific point
-        while calculating a normal y gradient. For interior points, we calculate
-        dy as the distance between y+1 and y-1. On the "north" edge, we calculate
-        dy as the difference between y and y+1. On the  edge, we calculate
-        dy as y and y-1.
+        Returns a constant representing the latitudinal distance between points of
+        constant longitude. Result should be constant for all points, because
+        we're increasing a constant number of degrees per row.
         """
-        if hasattr(self, "dy"):
+        if self.dy:
             return self.dy
 
-        self.dy = great_circle_distance(self.ym1, self.yp1)
+        slice1 = self.coors[:-1, :]
+        slice2 = self.coors[1:, :]
+
+        distances = great_circle_distance(slice1, slice2)
+
+        expected_distance = distances[0, 0]
+
+        if not np.allclose(distances, expected_distance):
+            print("Warning: latitudinal distances are not constant along constant longitude. dy is not set.")
+            return
+
+        self.dy = expected_distance
+
         return self.dy
 

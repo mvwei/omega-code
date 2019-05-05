@@ -3,7 +3,9 @@ import numpy as np
 
 from quasigeostrophic_omega import run_qg
 
-f = xr.open_dataset('data/2013.11.18_regrid.nc')
+from classes import CoordinateField
+
+f = xr.open_dataset('../data/2013.11.18_regrid.nc')
 
 # for now, let's just get the data for eta=0.75 or so.
 #
@@ -42,7 +44,7 @@ timestep = 0
 
 lon = f.lon
 lat = f.lat
-pressure_levels = f.levs
+pressure_levels = f.lev
 
 # expect this to be a X by Y by 5 array. The middle section (3) is
 # the one we want to look at; the rest are going to be boundary conditions.
@@ -61,5 +63,9 @@ v10 = f.V10
 q2 = f.Q2
 t2 = f.T2
 
+c = CoordinateField(lon=lon, lat=lat)
 
-run_qg(u=u, v=v, temp=temp, pressure_levels=pressure_levels, lat=lat, lon=lon)
+print(c.get_dx())
+# print(c.get_dy())
+
+# run_qg(u=u, v=v, temp=temp, pressure_levels=pressure_levels, lat=lat, lon=lon)
