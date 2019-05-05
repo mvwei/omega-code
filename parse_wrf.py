@@ -65,7 +65,7 @@ t2 = f.T2
 
 c = CoordinateField(lon=lon, lat=lat)
 
-print(c.get_dx())
-# print(c.get_dy())
+print(c.dx)
+print(c.dy)
 
 # run_qg(u=u, v=v, temp=temp, pressure_levels=pressure_levels, lat=lat, lon=lon)

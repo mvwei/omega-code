@@ -1,13 +1,15 @@
 import numpy as np
 
-# We aren't getting fancy here. This is the numpy gradient method, which is
-# second order central finite difference in the middle and first order (forward
-# difference on the left, backward difference on the right) on the edges.
-#
-# The variable distance can either be a scalar or an array. Keep in mind
-# that the array's usage is different from numpy's gradient array usage, and is customized
-# to our use case.
 def first_derivative(f, axis, distance):
+    """
+    We aren't getting fancy here. This is the numpy gradient method, which is
+    second order central finite difference in the middle and first order (forward
+    difference on the left, backward difference on the right) on the edges.
+
+    The variable distance can either be a scalar or an array. Keep in mind
+    that the array's usage is different from numpy's gradient array usage, and is customized
+    to our use case.
+    """
     def gradient_helper(row):
         """
         Given a row of format [dx, ...data], calculate the gradient of the data
@@ -31,13 +33,23 @@ def first_derivative(f, axis, distance):
         # function.
         temp_arr = np.insert(f, 0, distance, axis=-1)
 
-        return np.apply_along_axis
+        return np.apply_along_axis(gradient_helper, axis, temp_arr)
 
     else:
         print("What the hell did you pass in?")
         return
 
-def second_derivative(f, axis):
+def second_derivative(f, axis, distance):
+    """
+    Oh god. Help me.
+
+    Fourth order central difference in range [2, n-3].
+    Second order central difference for 1 and n-2.
+    First order forward difference for 0.
+    First order backward difference for n-1.
+
+    Likely copied from numpy gradient code with some tweaks.
+    """
     return
 
 def great_circle_distance(coor1, coor2):

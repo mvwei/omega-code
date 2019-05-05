@@ -1,39 +1,59 @@
 import numpy as np
 
 from functions import (
-    get_shifted_by_one,
-    horizontal_gradient,
-    vertical_gradient,
-    laplacian,
+    first_derivative,
+    second_derivative,
     great_circle_distance,
 )
 
-# Given a N dimensional numpy array, here's a class that will
-# ideally give us everything we could ever want.
 class ScalarField:
-    def __init__(self, np_array):
+    """
+    Given a N dimensional numpy array, here's a class that will
+    ideally give us everything we could ever want.
+
+    DIMENSIONS: could be (time, plvl, lat, lon), (plvl, lat, lon), OR
+    (lat, lon). Who knows.
+    """
+    def __init__(self, values, dx, dy):
+        """
+
+        """
         self.values = values
 
-    def ddx(self):
-        return
+        self.dx = dx
+        self.dy = dy
 
-    def ddy(self):
-        return
+        self.ddx = None
+        self.ddy = None
 
-    def ddp(self):
-        return
+        self.laplacian = None
 
-    def d2dx2(self):
-        return
+    def get_ddx(self):
+        if self.ddx:
+            return self.ddx
 
-    def d2dy2(self):
-        return
+        self.ddx = first_derivative(f=self.values, axis=-1, distance=self.dx)
 
-    def horizontal_gradient(self):
-        return
+        return self.ddx
 
-    def laplacian(self):
-        return
+    def get_ddy(self):
+        if self.ddy:
+            return self.ddy
+
+        self.ddy = first_derivative(f=self.values, axis=-2, distance=self.dy)
+
+        return self.ddy
+
+    def get_laplacian(self):
+        if self.laplacian:
+            return self.laplacian
+
+        d2dx2 = second_derivative(f=self.values, axis=-1, distance=self.dx)
+        d2dy2 = second_derivative(f=self.values, axis=-2, distance=self.dy)
+
+        self.laplacian = self.d2dx2 + self.d2dy2
+
+        return self.laplacian
 
 # Values should be of form (a, b), corresponding to the vector ai + bj.
 class VectorField:
@@ -43,36 +63,35 @@ class VectorField:
     def divergence(self):
         return
 
-# REMINDER: y is dimension 0, x is dimension 1.
-# lat: 1D array of latitudes.
-# lon: 1d array of longitudes.
-# lat x lon makes up our entire grid.
+
 class CoordinateField:
+    """
+    REMINDER: y is dimension 0, x is dimension 1.
+    """
     def __init__(self, lat, lon):
+        """
+        lat: 1D array of latitudes.
+        lon: 1d array of longitudes.
+        lat x lon makes up our entire grid.
+        """
         self.nx = lon.size
         self.ny = lat.size
-
-        self.lon = lon
-        self.lat = lat
 
         lon2d = np.tile(lon, (self.ny, 1))
         lat2d = np.tile(lat, (self.nx, 1)).transpose()
 
         self.coors = np.dstack((lat2d, lon2d))
 
-        self.dx = None
-        self.dy = None
+        self.dx = self._get_dx()
+        self.dy = self._get_dy()
 
-    def get_dx(self):
+    def _get_dx(self):
         """
         Returns a 1D array of distances (km) between horizontal points.
         For a given latitude, the distance between points should be the same.
         Horizontal distance decreases as latitude increases, because globes
         and stuff.
         """
-        if self.dx:
-            return self.dx
-
         slice1 = self.coors[:, :-1]
         slice2 = self.coors[:, 1:]
 
@@ -90,19 +109,14 @@ class CoordinateField:
             print("Warning: longitudinal distances are not constant along constant latitude. dx is not set.")
             return
 
-        self.dx = distance_arr
+        return distance_arr
 
-        return self.dx
-
-    def get_dy(self):
+    def _get_dy(self):
         """
         Returns a constant representing the latitudinal distance between points of
         constant longitude. Result should be constant for all points, because
         we're increasing a constant number of degrees per row.
         """
-        if self.dy:
-            return self.dy
-
         slice1 = self.coors[:-1, :]
         slice2 = self.coors[1:, :]
 
@@ -114,7 +128,5 @@ class CoordinateField:
             print("Warning: latitudinal distances are not constant along constant longitude. dy is not set.")
             return
 
-        self.dy = expected_distance
-
-        return self.dy
+        return expected_distance
 
