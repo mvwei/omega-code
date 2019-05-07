@@ -3,7 +3,10 @@ import numpy as np
 
 from quasigeostrophic_omega import run_qg
 
-from classes import CoordinateField
+from classes import (
+    CoordinateField,
+    ScalarField
+)
 
 from helpers import great_circle_distance
 
@@ -66,9 +69,7 @@ v10 = f.V10
 q2 = f.Q2
 t2 = f.T2
 
-c = CoordinateField(lon=lon, lat=lat, distance_func=great_circle_distance)
+c = CoordinateField(lat, lon, great_circle_distance)
+s = ScalarField(u, c.dx, c.dy)
 
-print(c.dx)
-print(c.dy)
-
-# run_qg(u=u, v=v, temp=temp, pressure_levels=pressure_levels, lat=lat, lon=lon)
+print(s.get_ddx())

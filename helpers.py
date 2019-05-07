@@ -1,6 +1,5 @@
 import numpy as np
 import pandas
-import matplotlib.pyplot as plt
 
 """
 For model-specific functions. Calculating things like distances,
@@ -46,6 +45,35 @@ def great_circle_distance(coor1, coor2):
     c = 2 * np.arcsin(np.sqrt(a))
     km = 6367 * c
     return km
+
+def w_to_omega(w, qv, temp, p):
+    """
+    w: vertical velocity
+    qv: water vapor mixing ratio
+    temp: temperature (K)
+    p: pressure levels
+
+    Taken from omgcode in wrf_rip_phys_routines.f and adapted from Python.
+    Rewritten because it's faster than trying to get wrf-python
+    to cooperate with me.
+
+    omega = -rho * g * w
+
+    The bulk of this is trying to estimate the density.
+    """
+    g = 9.81        # m/s**2
+    rgas = 287.04   # J/K/kg
+    eps = 0.622
+
+    # get ready to divide this guy along the pressure axis, which is
+    # either axis 0 or 1 depending on whether or not we're passing in time.
+    plvl = p[:, np.newaxis, np.newaxis]
+
+    # P/RT * (1 + qv) / (1 + 1/eps * qv), except with the right part multiplied
+    # by eps/eps
+    density = (plvl / (rgas * T)) * (eps * (1 + qv)) / (eps + qv)
+
+    return -g * w * density
 
 def visualize(data):
     """

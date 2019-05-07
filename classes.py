@@ -8,7 +8,7 @@ from functions import (
 class ScalarField:
     """
     Given a N dimensional numpy array, here's a class that will
-    ideally give us everything we could ever want.
+    ideally give us everything we could ever want. For derivatives.
 
     DIMENSIONS: could be (time, plvl, lat, lon), (plvl, lat, lon), OR
     (lat, lon). Who knows.
@@ -68,7 +68,7 @@ class VectorField:
 
     def divergence(self):
         dXdx = first_derivative(f=self.x_values, axis=-1, distance=self.dx)
-        dYdy = first_derivative(f=self.x_values, axis=-1, distance=self.dy)
+        dYdy = first_derivative(f=self.y_values, axis=-2, distance=self.dy)
 
         return dXdx + dYdy
 
