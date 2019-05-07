@@ -5,6 +5,9 @@ from quasigeostrophic_omega import run_qg
 
 from classes import CoordinateField
 
+from helpers import great_circle_distance
+
+
 f = xr.open_dataset('../data/2013.11.18_regrid.nc')
 
 # for now, let's just get the data for eta=0.75 or so.
@@ -63,7 +66,7 @@ v10 = f.V10
 q2 = f.Q2
 t2 = f.T2
 
-c = CoordinateField(lon=lon, lat=lat)
+c = CoordinateField(lon=lon, lat=lat, distance_func=great_circle_distance)
 
 print(c.dx)
 print(c.dy)

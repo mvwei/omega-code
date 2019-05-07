@@ -91,3 +91,24 @@ def great_circle_distance(coor1, coor2):
     c = 2 * np.arcsin(np.sqrt(a))
     km = 6367 * c
     return km
+
+def generate_coefficient_matrix(dx_coeff, dy_coeff, dp_coeff, d2x_coeff, d2y_coeff, d2p_coeff):
+    """
+    Generate the coefficient matrix.
+
+    If we have any d2 coefficients, we assume that we have boundary conditions 2 above,
+    2 below, and 2 along the sides.
+
+    If we have only d1 coefficients, we assume boundary conditions 1 above, 1 below,
+    and 1 along the sides.
+
+    Boundary conditions will appear because their rows will just be identity.
+    """
+    return
+
+def result_matrix():
+    """
+    The result matrix. Will involve flattening an (nz x ny x nx) array into a (1 x (nx*ny*nx))
+    array. Well, this will be fun.
+    """
+    return

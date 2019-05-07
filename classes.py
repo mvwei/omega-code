@@ -3,7 +3,6 @@ import numpy as np
 from functions import (
     first_derivative,
     second_derivative,
-    great_circle_distance,
 )
 
 class ScalarField:
@@ -55,20 +54,30 @@ class ScalarField:
 
         return self.laplacian
 
-# Values should be of form (a, b), corresponding to the vector ai + bj.
 class VectorField:
-    def __init__(self, values):
-        self.values = values
+    """
+    Right now, let's just assume we're using a two-dimensional vector
+    field. No need to get pointlessly fancy.
+    """
+    def __init__(self, x_values, y_values, dx, dy):
+        self.x_values = x_values
+        self.y_values = y_values
+
+        self.dx = dx
+        self.dy = dy
 
     def divergence(self):
-        return
+        dXdx = first_derivative(f=self.x_values, axis=-1, distance=self.dx)
+        dYdy = first_derivative(f=self.x_values, axis=-1, distance=self.dy)
+
+        return dXdx + dYdy
 
 
 class CoordinateField:
     """
     REMINDER: y is dimension 0, x is dimension 1.
     """
-    def __init__(self, lat, lon):
+    def __init__(self, lat, lon, distance_func):
         """
         lat: 1D array of latitudes.
         lon: 1d array of longitudes.
@@ -76,6 +85,8 @@ class CoordinateField:
         """
         self.nx = lon.size
         self.ny = lat.size
+
+        self.distance_func = distance_func
 
         lon2d = np.tile(lon, (self.ny, 1))
         lat2d = np.tile(lat, (self.nx, 1)).transpose()
@@ -95,7 +106,7 @@ class CoordinateField:
         slice1 = self.coors[:, :-1]
         slice2 = self.coors[:, 1:]
 
-        distances = great_circle_distance(slice1, slice2)
+        distances = self.distance_func(slice1, slice2)
 
         distance_arr = distances[:, 0]
 
@@ -120,7 +131,7 @@ class CoordinateField:
         slice1 = self.coors[:-1, :]
         slice2 = self.coors[1:, :]
 
-        distances = great_circle_distance(slice1, slice2)
+        distances = self.distance_func(slice1, slice2)
 
         expected_distance = distances[0, 0]
 

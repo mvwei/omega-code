@@ -2,47 +2,50 @@ import numpy as np
 import pandas
 import matplotlib.pyplot as plt
 
-from functions import great_circle_distance
-from classes import CoordinateField
+"""
+For model-specific functions. Calculating things like distances,
+heat flux, etc.
+"""
 
-def get_lat_degree_interval(dy, r=6367.0):
+def great_circle_distance(coor1, coor2):
     """
-    We're doing arcs along a circle here. Woo!
+    Given two sets of coordinate arrays [lat, lon], calculate the great circle distance
+    between them.
 
-    arclength = r * theta, where theta is angle of difference in radians.
-    """
-    return np.degrees(dy/r)
-
-def get_lon_degree_interval(lat, dx, r=6367.0):
-    """
-    No change in latitude. All we need to do is figure the length of
-    the "radius" of the slice of the sphere at the provided latitude.
-
-    rlat = r * cos(lat)
-    dx = rlat * theta = r * cos(lat) * theta
-    """
-    rad_lat = np.radians(lat)
-
-    return np.degrees(dx/(r * np.cos(rad_lat)))
-
-
-def get_equidistant_lat_lon(north_lat_bound, south_lat_bound, west_lon_bound, east_lon_bound, dx, dy):
-    r = 6367
-
-    lat_interval = get_lat_degree_interval(dy)
-    lat_array = np.arange(south_lat_bound, north_lat_bound, lat_interval)
-
-    dlon0 = get_lon_degree_interval(lat=south_lat_bound, dx=dx)
-    nlon0 = int(np.ceil((east_lon_bound - west_lon_bound) / dlon0))
-
-    lon_array = [
-        (get_lon_degree_interval(lat, dx) * np.arange(0, nlon0) + west_lon_bound)
-        for lat in lat_array
+    We're given things of the format:
+    [
+        [ [lat1, lon1], [lat2, lon2], [lat3, lon3], ... ],
+        [ [lat4, lon4], [lat5, lon5], [lat6, lon6], ... ],
     ]
 
-    lat_array_2d = np.tile(lat_array, (nlon0, 1)).transpose()
+    And to maximize utility of numpy, we want to split them into arrays of strictly
+    lat and strictly lon.
 
-    return lat_array_2d, lon_array
+    Formula taken from
+    https://stackoverflow.com/questions/29545704/fast-haversine-approximation-python-pandas
+    """
+    rad_coor1 = np.radians(coor1)
+    rad_coor2 = np.radians(coor2)
+
+    nx, ny, ncoor = np.shape(coor1)
+
+    lat1, lon1 = np.dsplit(rad_coor1, 2)
+    lat2, lon2 = np.dsplit(rad_coor2, 2)
+
+    lat1 = np.reshape(lat1, (nx, ny))
+    lon1 = np.reshape(lon1, (nx, ny))
+
+    lat2 = np.reshape(lat2, (nx, ny))
+    lon2 = np.reshape(lon2, (nx, ny))
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
+
+    c = 2 * np.arcsin(np.sqrt(a))
+    km = 6367 * c
+    return km
 
 def visualize(data):
     """
