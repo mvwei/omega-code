@@ -6,7 +6,7 @@ For model-specific functions. Calculating things like distances,
 heat flux, etc.
 """
 
-def great_circle_distance(coor1, coor2):
+def great_circle_distance(coor1, coor2, unit='m'):
     """
     Given two sets of coordinate arrays [lat, lon], calculate the great circle distance
     between them.
@@ -44,7 +44,33 @@ def great_circle_distance(coor1, coor2):
 
     c = 2 * np.arcsin(np.sqrt(a))
     km = 6367 * c
-    return km
+
+    if unit == 'km':
+        return km
+    elif unit == 'm':
+        return km * 1000
+    else:
+        print("Unit % is not supported, returning in km." % unit)
+        return km
+
+def moist_air_density(qv, temp, p):
+    rgas = 287.04   # J/K/kg
+    eps = 0.622
+
+    # get ready to have this guy as a constant along the pressure axis, which is
+    # either axis 0 or 1 depending on whether or not we're passing in time.
+    try:
+        # if it's a numpy array, this will succeed.
+        # If it's a data array, this will fail.
+        plvl = p[:, np.newaxis, np.newaxis]
+    except IndexError:
+        plvl = p.values[:, np.newaxis, np.newaxis]
+
+    # P/RT * (1 + qv) / (1 + 1/eps * qv), except with the right part multiplied
+    # by eps/eps
+    density = (plvl / (rgas * temp)) * (eps * (1 + qv)) / (eps + qv)
+
+    return density
 
 def w_to_omega(w, qv, temp, p):
     """
@@ -61,25 +87,14 @@ def w_to_omega(w, qv, temp, p):
 
     The bulk of this is trying to estimate the density.
     """
-    g = 9.81        # m/s**2
-    rgas = 287.04   # J/K/kg
-    eps = 0.622
+    g = 9.81      # m/s**2
 
-    # get ready to divide this guy along the pressure axis, which is
-    # either axis 0 or 1 depending on whether or not we're passing in time.
-    plvl = p[:, np.newaxis, np.newaxis]
-
-    # P/RT * (1 + qv) / (1 + 1/eps * qv), except with the right part multiplied
-    # by eps/eps
-    density = (plvl / (rgas * T)) * (eps * (1 + qv)) / (eps + qv)
+    density = moist_air_density(qv, temp, p)
 
     return -g * w * density
 
-def visualize(data):
-    """
-    I don't know, what the fuck do I know?
-    """
-    return
+def omega_to_w(omega, qv, temp, p):
+    density = moist_air_density(qv, temp, p)
 
-def get_2d_matrix_row(i, j, k, nx, ny):
-    return k*nx*ny + i*nx + j
+    return omega / (-g * density)
+

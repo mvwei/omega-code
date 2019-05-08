@@ -1,27 +1,61 @@
 import numpy as np
 from classes import (
     ScalarField,
-    VectorField
+    VectorField,
+    CoordinateField,
 )
 
-def run_divergence(u, v, w):
+from functions import (
+    get_coefficient_matrix,
+    get_rhs,
+)
+
+from helpers import (
+    great_circle_distance,
+    w_to_omega,
+    omega_to_w,
+)
+
+def run_continuity(u, v, omega, lat, lon, levels):
+    def continuity_helper(time_slice, omega, dp):
+        print("Getting RHS")
+        b = get_rhs(omega, time_slice, 1)
+
+        print(b.size)
+
+        print("Getting coefficient matrix")
+        A = get_coefficient_matrix(
+            nb=1,
+            shape=time_slice.shape,
+            point_coeff=(-2/dp**2),
+            dp_coeff=(1/dp**2),
+        )
+        print(A)
+
+        print("Solver")
+        return np.linalg.solve(A, b)
+
+    # import pdb
+    # pdb.set_trace()
+
+    # Generate the coordinate field.
+    c = CoordinateField(lat, lon, great_circle_distance, levels)
+
     # Calculate du/dx.
-    #
+    u_field = ScalarField(u, c.dx, c.dy)
+
     # Calculate dv/dy.
-    #
-    # Create the empty shell of a massive 3 x nx x ny omega coefficient array.
-    # It is all 1s.
-    #
-    # Create the empty shell of a 3 x nx x ny omega array.
-    #
-    # Create the w matrix at 850, slot it in.
-    #
-    # Create the constants matrix at 850, slot it in.
-    #
-    # Flatten the two arrays.
-    #
-    # Solve.
-    return
+    v_field = ScalarField(v, c.dx, c.dy)
+
+    # dw/dp = -du/dx - dv/dy
+    calculated_values = -u_field.get_ddx() - v_field.get_ddy()
+
+    # results = np.empty((calculated_values.shape[0]))
+
+    # let's just do the first time splice right now
+    results = continuity_helper(calculated_values[1], omega[1], c.dp)
+
+    return np.reshape(results, (levels.size, lat.size, lon.size))
 
 def run_qg(u, v, w, temp, pressure_levels, lat, lon):
     """
@@ -61,5 +95,8 @@ def run_qg(u, v, w, temp, pressure_levels, lat, lon):
     # Flatten the two arrays.
     #
     # Solve.
+    #
+    def qg_omega_helper_func():
+        return
 
     return

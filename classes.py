@@ -28,7 +28,7 @@ class ScalarField:
         self.laplacian = None
 
     def get_ddx(self):
-        if self.ddx:
+        if self.ddx is not None:
             return self.ddx
 
         self.ddx = first_derivative(f=self.values, axis=-1, distance=self.dx)
@@ -36,7 +36,7 @@ class ScalarField:
         return self.ddx
 
     def get_ddy(self):
-        if self.ddy:
+        if self.ddy is not None:
             return self.ddy
 
         self.ddy = first_derivative(f=self.values, axis=-2, distance=self.dy)
@@ -44,7 +44,7 @@ class ScalarField:
         return self.ddy
 
     def get_laplacian(self):
-        if self.laplacian:
+        if self.laplacian is not None:
             return self.laplacian
 
         d2dx2 = second_derivative(f=self.values, axis=-1, distance=self.dx)
@@ -77,7 +77,7 @@ class CoordinateField:
     """
     REMINDER: y is dimension 0, x is dimension 1.
     """
-    def __init__(self, lat, lon, distance_func):
+    def __init__(self, lat, lon, distance_func, levels):
         """
         lat: 1D array of latitudes.
         lon: 1d array of longitudes.
@@ -88,6 +88,8 @@ class CoordinateField:
 
         self.distance_func = distance_func
 
+        self.levels = levels
+
         lon2d = np.tile(lon, (self.ny, 1))
         lat2d = np.tile(lat, (self.nx, 1)).transpose()
 
@@ -95,6 +97,7 @@ class CoordinateField:
 
         self.dx = self._get_dx()
         self.dy = self._get_dy()
+        self.dp = self._get_dp()
 
     def _get_dx(self):
         """
@@ -141,3 +144,18 @@ class CoordinateField:
 
         return expected_distance
 
+    def _get_dp(self):
+        """
+        This is mostly a sanity check to see that all the pressure levels
+        are evently distributed.
+        """
+        first = self.levels[0]
+        last = self.levels[-1]
+
+        evenly_spaced = np.linspace(first, last, num=self.levels.size)
+
+        if not np.array_equal(self.levels, evenly_spaced):
+            print("Warning: pressure levels are not evenly spaced. Please fix.")
+            return
+
+        return self.levels[1] - self.levels[0]

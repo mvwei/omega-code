@@ -1,60 +1,22 @@
 import xarray as xr
 import numpy as np
 
-from quasigeostrophic_omega import run_qg
-
-from classes import (
-    CoordinateField,
-    ScalarField
+from quasigeostrophic_omega import (
+    run_qg,
+    run_continuity
 )
 
-from helpers import great_circle_distance
-
+from helpers import w_to_omega
 
 f = xr.open_dataset('../data/2013.11.18_regrid.nc')
 
-# for now, let's just get the data for eta=0.75 or so.
-#
-# We want to store dx and dy right now--that is, the distance between
-# points on the grid.
-#
-#
-# Imagine a grid as follows:
-#
-# a --- b --- c
-# |     |     |
-# d --- e --- f
-# |     |     |
-# g --- h --- i
-#
-# dx will be the distance used at each point to calculate the gradient.
-# For interior points, this will be the surrounding points.
-#
-# d(b,a) --- d(c,a) --- d(c,b)
-#   |           |         |
-# d(e,d) --- d(f,d) --- d(f,e)
-#   |           |         |
-# d(h,g) --- d(i,g) --- d(i,h)
-#
-#  dy will be:
-#
-# (d-a) --- (e-b) --- (f-c)
-#   |         |         |
-# (e-d) --- (f-d) --- (f-e)
-#   |         |         |
-# (h-g) --- (i-g) --- (i-h)
+# we're getting only the 850Pa values.
+f = f.isel(lev=slice(1, 4), lat=slice(100, 110), lon=slice(100, 110))
 
-# For now, let's do only the first timestep. Eventually, this will
-# be a for loop.
-timestep = 0
-
-lon = f.lon
 lat = f.lat
-pressure_levels = f.lev
+lon = f.lon
+levels = f.lev
 
-# expect this to be a X by Y by 5 array. The middle section (3) is
-# the one we want to look at; the rest are going to be boundary conditions.
-# Yay.
 u = f.U
 v = f.V
 w = f.W
@@ -69,7 +31,12 @@ v10 = f.V10
 q2 = f.Q2
 t2 = f.T2
 
-c = CoordinateField(lat, lon, great_circle_distance)
-s = ScalarField(u, c.dx, c.dy)
+omega = w_to_omega(w, q, temp, levels)
 
-print(s.get_ddx())
+results = run_continuity(u, v, omega, lat, lon, levels)
+
+print("-----------------OMEGA-----------------")
+print(omega[1, 1, 4, :].values)
+
+print("-----------------CALC-----------------")
+print(results[1, 4, :])
