@@ -39,16 +39,96 @@ def first_derivative(f, axis, distance):
         print("What the hell did you pass in?")
         return
 
-def second_derivative(f, axis, distance):
+def second_derivative(f, axis, dx):
+    """
+    Similar to the first derivative.
+    """
+    def gradient_helper(row):
+        dx = row[0]
+        actual_data = np.delete(row, 0)
+
+        return calculate_second_derivative(actual_data, axis=0, dx=dx)
+
+    # if scalar value, then just do the gradient.
+    if not np.ndim(distance):
+        return calculate_second_derivative(f, axis=axis, dx=dx)
+
+    elif np.ndim(distance) == 1 and distance.size == f.shape[axis - 1]:
+        # this is cringeworthy. I will take suggestions about how to make this less
+        # bad, but from what I can tell it is impossible to concurrently iterate
+        # over two np arrays of different dimensions simultaneously. So we're just
+        # going to throw dx in as the first variable, and then pop it out in the
+        # function.
+        temp_arr = np.insert(f, 0, distance, axis=-1)
+
+        return np.apply_along_axis(gradient_helper, axis, temp_arr)
+
+    else:
+        print("What the hell did you pass in?")
+        return
+
+def calculate_second_derivative(f, axis=0, dx=1.):
     """
     Fourth order central difference in range [2, n-3].
     Second order central difference for 1 and n-2.
     First order forward difference for 0.
     First order backward difference for n-1.
 
-    Likely copied from numpy gradient code with some tweaks.
+    Brute forcing. We're not trying to be subtle here.
+    Axis is required.
+
+    Based off the numpy gradient function to be found in
+    numpy/lib/function_base.py, except with some modified coefficients
+    to account for the second derivative and some reduced functionality.
     """
-    return
+    N = f.ndim
+
+    out = np.empty_like(f, dtype=f.dtype)
+
+    slice1 = [slice(None)]*N
+    slice2 = [slice(None)]*N
+    slice3 = [slice(None)]*N
+    slice4 = [slice(None)]*N
+    slice5 = [slice(None)]*N
+    slice6 = [slice(None)]*N
+
+    # Numerical differentiation: fourth order, interior
+    slice1[axis] = slice(2, -2)
+
+    slice2[axis] = slice(1, -3)
+    slice3[axis] = slice(3, -1)
+    slice4[axis] = slice(None, -4)
+    slice5[axis] = slice(4, None)
+
+    out[tuple(slice1)] = (-1 * (f[tuple(slice4)] + f[tuple(slice5)]) + 16 * (f[tuple(slice2)] + f[tuple(slice3)]) -30 * f[tuple(slice1)]) / (12 * dx**2)
+
+    # Numerical differentiation: second order, inner boundary
+    slice1[axis] = 1
+    slice2[axis] = 0
+    slice3[axis] = 2
+
+    out[tuple(slice1)] = (f[tuple(slice2)] - 2*f[tuple(slice1)] + f[tuple(slice3)]) / dx**2
+
+    slice1[axis] = -2
+    slice2[axis] = -1
+    slice3[axis] = -3
+
+    out[tuple(slice1)] = (f[tuple(slice2)] - 2*f[tuple(slice1)] + f[tuple(slice3)]) / dx**2
+
+    # Numerical differentiation: first order, outer boundary. Forward / backward difference.
+    slice1[axis] = 0
+    slice2[axis] = 1
+    slice3[axis] = 2
+
+    out[tuple(slice1)] = (f[tuple(slice1)] - 2*f[tuple(slice2)] + f[tuple(slice3)]) / dx**2
+
+    slice1[axis] = -1
+    slice2[axis] = -2
+    slice3[axis] = -3
+
+    out[tuple(slice1)] = (f[tuple(slice1)] - 2*f[tuple(slice2)] + f[tuple(slice3)]) / dx**2
+
+    return out
 
 def get_coefficient_matrix(nb, shape, point_coeff=0, x_coeff=0, dx_coeff=0, dy_coeff=0, dp_coeff=0, d2x_coeff=0, d2y_coeff=0, d2p_coeff=0):
     """
