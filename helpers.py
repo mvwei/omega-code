@@ -98,3 +98,41 @@ def omega_to_w(omega, qv, temp, p):
 
     return omega / (-g * density)
 
+def heating_rate_from_surface_flux(sflx, height, plvl, density=1.225):
+    # hardcoding for now. We only want surface flux to be
+    # on the lower level calculations. Should be 0 for upper level (~500 hPa)
+    # calculations.
+    if plvl[-1] < 500:
+        return np.zeros(sflx.shape)
+
+    z = height[:, -1, :, :] - height[:, 0, :, :]
+
+    return sflx / (density * z)
+
+def heating_rate_from_moisture_change(qv, dt=3600):
+    Lv = 2500000.   # units are J/kg
+    rho = 1.0687    # units are kg/m^3
+
+    t2 = qv[1:]
+    t1 = qv[:-1]
+
+    return (Lv * rho * (t2 - t1)) / dt
+
+def heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, p, z, dt=3600):
+    # hardcoding for the middle layer.
+    density = moist_air_density(qv_f.values, temp, p)
+
+    # hardcoding this guy. The target pressure we want is at index 2.
+    box_height = np.zeros(temp.shape)
+
+    box_height[:, 2] = z[:, 3] - z[:, 1]
+    dx = u_f.dx[:, np.newaxis]
+    volume = box_height * (2*dx) * (2*u_f.dy)
+
+    heat_rate = density * volume * dt * (
+        (qv_f.values * (u_f.get_ddx() + v_f.get_ddy())) +
+        (u_f.values * qv_f.get_ddx() + v_f.values * qv_f.get_ddy())
+    )
+
+    return heat_rate
+

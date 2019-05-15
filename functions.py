@@ -39,9 +39,10 @@ def first_derivative(f, axis, distance):
         print("What the hell did you pass in?")
         return
 
-def second_derivative(f, axis, dx):
+def second_derivative(f, axis, distance):
     """
-    Similar to the first derivative.
+    Similar to the first derivative. In fact, the same as the first derivative,
+    except with the derivative functions changed. What a shocker!
     """
     def gradient_helper(row):
         dx = row[0]
@@ -51,7 +52,7 @@ def second_derivative(f, axis, dx):
 
     # if scalar value, then just do the gradient.
     if not np.ndim(distance):
-        return calculate_second_derivative(f, axis=axis, dx=dx)
+        return calculate_second_derivative(f, axis=axis, dx=distance)
 
     elif np.ndim(distance) == 1 and distance.size == f.shape[axis - 1]:
         # this is cringeworthy. I will take suggestions about how to make this less
@@ -81,6 +82,8 @@ def calculate_second_derivative(f, axis=0, dx=1.):
     numpy/lib/function_base.py, except with some modified coefficients
     to account for the second derivative and some reduced functionality.
     """
+    f = np.asanyarray(f)
+
     N = f.ndim
 
     out = np.empty_like(f, dtype=f.dtype)
@@ -90,7 +93,6 @@ def calculate_second_derivative(f, axis=0, dx=1.):
     slice3 = [slice(None)]*N
     slice4 = [slice(None)]*N
     slice5 = [slice(None)]*N
-    slice6 = [slice(None)]*N
 
     # Numerical differentiation: fourth order, interior
     slice1[axis] = slice(2, -2)
@@ -99,6 +101,8 @@ def calculate_second_derivative(f, axis=0, dx=1.):
     slice3[axis] = slice(3, -1)
     slice4[axis] = slice(None, -4)
     slice5[axis] = slice(4, None)
+
+    a = (-1 * (f[tuple(slice4)] + f[tuple(slice5)]) + 16 * (f[tuple(slice2)] + f[tuple(slice3)]) -30 * f[tuple(slice1)]) / (12 * dx**2)
 
     out[tuple(slice1)] = (-1 * (f[tuple(slice4)] + f[tuple(slice5)]) + 16 * (f[tuple(slice2)] + f[tuple(slice3)]) -30 * f[tuple(slice1)]) / (12 * dx**2)
 

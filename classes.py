@@ -47,8 +47,8 @@ class ScalarField:
         if self.laplacian is not None:
             return self.laplacian
 
-        d2dx2 = second_derivative(f=self.values, axis=-1, distance=self.dx)
-        d2dy2 = second_derivative(f=self.values, axis=-2, distance=self.dy)
+        self.d2dx2 = second_derivative(f=self.values, axis=-1, distance=self.dx)
+        self.d2dy2 = second_derivative(f=self.values, axis=-2, distance=self.dy)
 
         self.laplacian = self.d2dx2 + self.d2dy2
 
@@ -158,4 +158,4 @@ class CoordinateField:
             print("Warning: pressure levels are not evenly spaced. Please fix.")
             return
 
-        return self.levels[1] - self.levels[0]
+        return np.abs(self.levels[1] - self.levels[0])
