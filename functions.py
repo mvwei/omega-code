@@ -134,7 +134,7 @@ def calculate_second_derivative(f, axis=0, dx=1.):
 
     return out
 
-def get_coefficient_matrix(nb, shape, point_coeff=0, x_coeff=0, dx_coeff=0, dy_coeff=0, dp_coeff=0, d2x_coeff=0, d2y_coeff=0, d2p_coeff=0):
+def get_coefficient_matrix(nb, shape, center_coeff=0, x_coeff=0, dx_coeff=0, dy_coeff=0, dp_coeff=0, d2x_coeff=0, d2y_coeff=0, d2p_coeff=0):
     """
     Generate the coefficient matrix.
 
@@ -149,6 +149,9 @@ def get_coefficient_matrix(nb, shape, point_coeff=0, x_coeff=0, dx_coeff=0, dy_c
     nb is the number of points along each "side" that will be boundaries.
 
     Collapsing in C-memory order.
+
+    Right now assuming second derivatives and therefore symmetry. If we ever
+    need to do asymetric coefficients, we'll need to rethink how this works.
     """
     (nz, ny, nx) = shape
 
@@ -170,49 +173,83 @@ def get_coefficient_matrix(nb, shape, point_coeff=0, x_coeff=0, dx_coeff=0, dy_c
                 arr = np.zeros((ntotal))
 
                 point = get_row_from_coordinate(z, y, x)
-                arr[point] = point_coeff
+
+                if callable(center_coeff):
+                    my_coeff = center_coeff(z, y, x)
+                else:
+                    arr[point] = center_coeff
 
                 if d2x_coeff:
                     xm2 = get_row_from_coordinate(z, y, x-2)
                     xp2 = get_row_from_coordinate(z, y, x+2)
 
-                    arr[xm2] = d2x_coeff
-                    arr[xp2] = d2x_coeff
+                    if callable(d2x_coeff):
+                        my_coeff = d2x_coeff(z, y, x)
+                    else:
+                        my_coeff = d2x_coeff
+
+                    arr[xm2] = my_coeff
+                    arr[xp2] = my_coeff
 
                 if d2y_coeff:
                     ym2 = get_row_from_coordinate(z, y-2, x)
                     yp2 = get_row_from_coordinate(z, y+2, x)
 
-                    arr[ym2] = d2y_coeff
-                    arr[yp2] = d2y_coeff
+                    if callable(d2y_coeff):
+                        my_coeff = d2y_coeff(z, y, x)
+                    else:
+                        my_coeff = d2y_coeff
+
+                    arr[ym2] = my_coeff
+                    arr[yp2] = my_coeff
 
                 if d2p_coeff:
                     zm2 = get_row_from_coordinate(z-2, y, x)
                     zp2 = get_row_from_coordinate(z+2, y, x)
 
-                    arr[zm2] = d2p_coeff
-                    arr[zp2] = d2p_coeff
+                    if callable(d2p_coeff):
+                        my_coeff = d2p_coeff(z, y, x)
+                    else:
+                        my_coeff = d2p_coeff
+
+                    arr[zm2] = my_coeff
+                    arr[zp2] = my_coeff
 
                 if dx_coeff:
                     xm1 = get_row_from_coordinate(z, y, x-1)
                     xp1 = get_row_from_coordinate(z, y, x+1)
 
-                    arr[xm1] = dx_coeff
-                    arr[xp1] = dx_coeff
+                    if callable(dx_coeff):
+                        my_coeff = dx_coeff(z, y, x)
+                    else:
+                        my_coeff = dx_coeff
+
+                    arr[xm1] = my_coeff
+                    arr[xp1] = my_coeff
 
                 if dy_coeff:
                     ym1 = get_row_from_coordinate(z, y-1, x)
                     yp1 = get_row_from_coordinate(z, y+1, x)
 
-                    arr[ym1] = dy_coeff
-                    arr[yp1] = dy_coeff
+                    if callable(dy_coeff):
+                        my_coeff = dy_coeff(z, y, x)
+                    else:
+                        my_coeff = dy_coeff
+
+                    arr[ym1] = my_coeff
+                    arr[yp1] = my_coeff
 
                 if dp_coeff:
                     zm1 = get_row_from_coordinate(z-1, y, x)
                     zp1 = get_row_from_coordinate(z+1, y, x)
 
-                    arr[zm1] = dp_coeff
-                    arr[zp1] = dp_coeff
+                    if callable(dz_coeff):
+                        my_coeff = dz_coeff(z, y, x)
+                    else:
+                        my_coeff = dz_coeff
+
+                    arr[zm1] = my_coeff
+                    arr[zp1] = my_coeff
 
                 full_arr[point, :] = arr
 

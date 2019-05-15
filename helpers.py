@@ -113,8 +113,8 @@ def heating_rate_from_moisture_change(qv, dt=3600):
     Lv = 2500000.   # units are J/kg
     rho = 1.0687    # units are kg/m^3
 
-    t2 = qv[1:]
-    t1 = qv[:-1]
+    t2 = qv[1:].values
+    t1 = qv[:-1].values
 
     return (Lv * rho * (t2 - t1)) / dt
 

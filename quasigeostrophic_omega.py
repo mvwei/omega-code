@@ -31,7 +31,7 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
         A = get_coefficient_matrix(
             nb=1,
             shape=time_slice.shape,
-            point_coeff=(-2/dp),
+            center_coeff=(-2/dp),
             dp_coeff=(1/dp),
         )
         # print(A)
@@ -51,13 +51,6 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
     # dw/dp = -du/dx - dv/dy
     calculated_values = -u_field.get_ddx() - v_field.get_ddy()
 
-    print("-----------------C FIELD-----------------")
-    print(c.dx)
-    print("-----------------U FIELD-----------------")
-    print(u[1, 1])
-    print("-----------------DU/DX-----------------")
-    print(u_field.get_ddx()[1, 1])
-
     results = np.empty((calculated_values.shape[0]))
 
     # let's just do the first time slice right now
@@ -65,25 +58,44 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
 
     return np.reshape(results, (levels.size, lat.size, lon.size))
 
-def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, solved_for_plvl):
-    def qg_helper(time_slice, omega, dx, dy, dp):
+def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
+    def qg_helper(calc_values, omega, dx, dy, dp):
         sigma = 0.000002      # units are m2Pa-2s-2
-        fo = 0.0001           # units are s-1
+        f0 = 0.0001           # units are s-1
+
+        def get_d2x_coeff(z, y, x):
+            distance = dx[y]
+
+            return (-1./12.) * sigma/distance**2
+
+        def get_dx_coeff(z, y, x):
+            distance = dx[y]
+
+            return (4./3.) * sigma / distance**2
+
+        def get_center_coeff(z, y, x):
+            x_distance = dx[y]
+
+            x_coeff = -(5./2.) * sigma / x_distance**2
+            y_coeff = -(5./2.) * sigma / dy**2
+            p_coeff = -(5./2.) * f0**2 / dp**2
+
+            return x_coeff + y_coeff + p_coeff
 
         print("Getting RHS")
-        b = get_rhs(omega, time_slice, 1)
+        b = get_rhs(boundary_values=omega, calculated_values=calc_values, nb=2)
 
         print("Getting coefficient matrix")
         A = get_coefficient_matrix(
-            nb=1,
-            shape=time_slice.shape,
-            point_coeff=None,
-            dp_coeff=None,
-            d2p_coeff=None,
-            dx_coeff=None,
-            d2x_coeff=None,
-            dy_coeff=None,
-            d2y_coeff=None,
+            nb=2,
+            shape=calc_values.shape,
+            center_coeff=get_center_coeff,
+            dx_coeff=get_dx_coeff,
+            d2x_coeff=get_d2x_coeff,
+            dy_coeff=(4./3.) * (sigma / dy**2),
+            d2y_coeff=(-1./12.) * (sigma / dy**2),
+            dp_coeff=(4./3.) * (f0**2 / dp**2),
+            d2p_coeff=(-1./12.) * (f0**2 / dp**2),
         )
         print(A)
 
@@ -143,11 +155,11 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, solved_for
     calculated_values = -2 * Q_vector.divergence() - (R / (plvl * cp)) * (
         H_sflx_f.get_laplacian() +
         H_lflx_f.get_laplacian() +
-        H_lhor_f.get_laplacian() +
+        # H_lhor_f.get_laplacian() +
         H_lphase_f.get_laplacian()
     )
 
     # let's just do the first time slice right now
-    results = continuity_helper(calculated_values[1], omega[1], c.dx, c.dy, c.dp)
+    results = qg_helper(calculated_values[1], omega[1], c.dx, c.dy, c.dp)
 
     return np.reshape(results, (levels.size, lat.size, lon.size))

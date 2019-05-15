@@ -38,15 +38,15 @@ t2 = f.T2
 
 omega = w_to_omega(w, q, temp, levels)
 
-run_qg(u, v, omega, temp, q, lh, hfx, z, lat, lon, levels, 850)
+run_qg(u, v, omega, temp, q, lh, hfx, z, lat, lon, levels)
 
 # results = run_continuity(u, v, omega, lat, lon, levels, w)
 
-# print("-----------------OMEGA-----------------")
-# print(omega[1, 1, 4, :].values)
+print("-----------------OMEGA-----------------")
+print(omega[1, 1, 4, :].values)
 
-# print("-----------------CALC-----------------")
-# print(results[1, 4, :])
+print("-----------------CALC-----------------")
+print(results[1, 4, :])
 
 # Things we want in the output nc file (we want output file so we can reaccess
 # the data without having to rerun the code):
