@@ -14,7 +14,7 @@ from helpers import (
 f = xr.open_dataset('../data/2013.11.18_regrid.nc')
 
 # we're getting only the 850Pa values.
-f = f.isel(lev=slice(0, 5), lat=slice(100, 110), lon=slice(100, 110))
+f = f.sel(lev=[880, 850, 820]).isel(lat=slice(100, 140), lon=slice(100, 140))
 
 lat = f.lat
 lon = f.lon
@@ -38,15 +38,15 @@ t2 = f.T2
 
 omega = w_to_omega(w, q, temp, levels)
 
-run_qg(u, v, omega, temp, q, lh, hfx, z, lat, lon, levels)
+results = run_qg(u, v, omega, temp, q, lh, hfx, z, lat, lon, levels)
 
 # results = run_continuity(u, v, omega, lat, lon, levels, w)
 
 print("-----------------OMEGA-----------------")
-print(omega[1, 1, 4, :].values)
+print(omega[1, 1, 5, :].values)
 
 print("-----------------CALC-----------------")
-print(results[1, 4, :])
+print(results[1, 5, :])
 
 # Things we want in the output nc file (we want output file so we can reaccess
 # the data without having to rerun the code):

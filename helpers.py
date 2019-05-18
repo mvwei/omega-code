@@ -122,10 +122,10 @@ def heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, p, z, dt=3600):
     # hardcoding for the middle layer.
     density = moist_air_density(qv_f.values, temp, p)
 
-    # hardcoding this guy. The target pressure we want is at index 2.
+    # hardcoding this guy. The target pressure we want is at index 1.
     box_height = np.zeros(temp.shape)
 
-    box_height[:, 2] = z[:, 3] - z[:, 1]
+    box_height[:, 1] = z[:, 2] - z[:, 0]
     dx = u_f.dx[:, np.newaxis]
     volume = box_height * (2*dx) * (2*u_f.dy)
 

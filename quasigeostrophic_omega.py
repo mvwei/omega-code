@@ -31,8 +31,8 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
         A = get_coefficient_matrix(
             nb=1,
             shape=time_slice.shape,
-            center_coeff=(-2/dp),
-            dp_coeff=(1/dp),
+            center_coeff=(-1/(2*dp)),
+            dp_coeff=[0, (1/(2*dp))],
         )
         # print(A)
 
@@ -82,24 +82,32 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
 
             return x_coeff + y_coeff + p_coeff
 
-        print("Getting RHS")
-        b = get_rhs(boundary_values=omega, calculated_values=calc_values, nb=2)
+        b = get_rhs(boundary_values=omega, calculated_values=calc_values, nb=1)
 
-        print("Getting coefficient matrix")
+        # A = get_coefficient_matrix(
+        #     nb=2,
+        #     shape=calc_values.shape,
+        #     center_coeff=get_center_coeff,
+        #     dx_coeff=get_dx_coeff,
+        #     d2x_coeff=get_d2x_coeff,
+        #     dy_coeff=(4./3.) * (sigma / dy**2),
+        #     d2y_coeff=(-1./12.) * (sigma / dy**2),
+        #     dp_coeff=(4./3.) * (f0**2 / dp**2),
+        #     d2p_coeff=(-1./12.) * (f0**2 / dp**2),
+        # )
+        #
+
+        avg_dx = np.mean(dx)
+
         A = get_coefficient_matrix(
-            nb=2,
+            nb=1,
             shape=calc_values.shape,
-            center_coeff=get_center_coeff,
-            dx_coeff=get_dx_coeff,
-            d2x_coeff=get_d2x_coeff,
-            dy_coeff=(4./3.) * (sigma / dy**2),
-            d2y_coeff=(-1./12.) * (sigma / dy**2),
-            dp_coeff=(4./3.) * (f0**2 / dp**2),
-            d2p_coeff=(-1./12.) * (f0**2 / dp**2),
+            center_coeff=(-2*(sigma/avg_dx**2 + sigma/dy**2 + f0**2/dp**2)),
+            dx_coeff=(sigma/avg_dx**2),
+            dy_coeff=(sigma/dy**2),
+            dp_coeff=(f0**2/dp**2),
         )
-        print(A)
 
-        print("Solver")
         return np.linalg.solve(A, b)
 
     shape = u.shape
@@ -108,7 +116,6 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
     plvl = levels.values[:, np.newaxis, np.newaxis] # this is for easy divisibility.
 
     dt = 3600             # time in seconds between timesteps
-
     R = 287.05            # units are J/kgK
     cp = 1004.            # units are J/kgK
 
@@ -128,14 +135,14 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
     # HEAT TERM TIME
     # Calculate heat contribution form surface sensible heat flux.
     H_surface_sensible_flux = np.zeros(shape)
-    H_surface_sensible_flux[:, 2] = heating_rate_from_surface_flux(shf, height, levels)
+    H_surface_sensible_flux[:, 1] = heating_rate_from_surface_flux(shf, height, levels)
 
     # # Calculate heat contribution from surface latent heat flux.
     H_surface_latent_flux = np.zeros(shape)
-    H_surface_latent_flux[:, 2] = heating_rate_from_surface_flux(lhf, height, levels)
+    H_surface_latent_flux[:, 1] = heating_rate_from_surface_flux(lhf, height, levels)
 
     # Calculate horizontal latent heat flux (advection of moisture).
-    H_latent_horizontal_flux = heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, levels, height, dt)
+    # H_latent_horizontal_flux = heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, levels, height, dt)
 
     # Calculate latent heat contribution from change in vapor over time.
     # It will be zero for the first time step, because we don't have any previous
@@ -149,17 +156,20 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
 
     H_sflx_f = ScalarField(H_surface_sensible_flux, c.dx, c.dy)
     H_lflx_f = ScalarField(H_surface_latent_flux, c.dx, c.dy)
-    H_lhor_f = ScalarField(H_latent_horizontal_flux, c.dx, c.dy)
+    # H_lhor_f = ScalarField(H_latent_horizontal_flux, c.dx, c.dy)
     H_lphase_f = ScalarField(H_latent_phase_change_flux, c.dx, c.dy)
 
-    calculated_values = -2 * Q_vector.divergence() - (R / (plvl * cp)) * (
+    q_terms = - 2 * Q_vector.divergence()
+
+    heat_terms = - (R / (plvl * cp)) * (
         H_sflx_f.get_laplacian() +
         H_lflx_f.get_laplacian() +
-        # H_lhor_f.get_laplacian() +
         H_lphase_f.get_laplacian()
     )
 
-    # let's just do the first time slice right now
+    calculated_values = q_terms + heat_terms
+
+    # # let's just do the first time slice right now
     results = qg_helper(calculated_values[1], omega[1], c.dx, c.dy, c.dp)
 
     return np.reshape(results, (levels.size, lat.size, lon.size))

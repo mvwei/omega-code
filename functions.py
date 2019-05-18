@@ -102,8 +102,6 @@ def calculate_second_derivative(f, axis=0, dx=1.):
     slice4[axis] = slice(None, -4)
     slice5[axis] = slice(4, None)
 
-    a = (-1 * (f[tuple(slice4)] + f[tuple(slice5)]) + 16 * (f[tuple(slice2)] + f[tuple(slice3)]) -30 * f[tuple(slice1)]) / (12 * dx**2)
-
     out[tuple(slice1)] = (-1 * (f[tuple(slice4)] + f[tuple(slice5)]) + 16 * (f[tuple(slice2)] + f[tuple(slice3)]) -30 * f[tuple(slice1)]) / (12 * dx**2)
 
     # Numerical differentiation: second order, inner boundary
@@ -243,13 +241,17 @@ def get_coefficient_matrix(nb, shape, center_coeff=0, x_coeff=0, dx_coeff=0, dy_
                     zm1 = get_row_from_coordinate(z-1, y, x)
                     zp1 = get_row_from_coordinate(z+1, y, x)
 
-                    if callable(dz_coeff):
-                        my_coeff = dz_coeff(z, y, x)
+                    if callable(dp_coeff):
+                        my_coeff = dp_coeff(z, y, x)
+                        arr[zm1] = my_coeff
+                        arr[zp1] = my_coeff
+                    elif np.ndim(dp_coeff) == 1 and len(dp_coeff) == 2:
+                        # in the case of negatives
+                        arr[zm1] = dp_coeff[0]
+                        arr[zp1] = dp_coeff[1]
                     else:
-                        my_coeff = dz_coeff
-
-                    arr[zm1] = my_coeff
-                    arr[zp1] = my_coeff
+                        arr[zm1] = dp_coeff
+                        arr[zp1] = dp_coeff
 
                 full_arr[point, :] = arr
 
