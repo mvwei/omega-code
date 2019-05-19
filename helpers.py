@@ -102,21 +102,35 @@ def heating_rate_from_surface_flux(sflx, height, plvl, density=1.225):
     # hardcoding for now. We only want surface flux to be
     # on the lower level calculations. Should be 0 for upper level (~500 hPa)
     # calculations.
+    result = np.zeros(height.shape)
+
+    mid_layer = int((len(plvl) - 1)/2)
+
     if plvl[-1] < 500:
         return np.zeros(sflx.shape)
 
     z = height[:, -1, :, :] - height[:, 0, :, :]
 
-    return sflx / (density * z)
+    result[:, mid_layer] = sflx / (density * z)
+
+    return result
 
 def heating_rate_from_moisture_change(qv, dt=3600):
+    # Calculate latent heat contribution from change in vapor over time.
+    # It will be zero for the first time step, because we don't have any previous
+    # moisture data. This is fine because we're throwing out the first data,
+    # anyhow.
     Lv = 2500000.   # units are J/kg
     rho = 1.0687    # units are kg/m^3
+
+    result = np.zeros(qv.shape)
 
     t2 = qv[1:].values
     t1 = qv[:-1].values
 
-    return (Lv * rho * (t2 - t1)) / dt
+    result[1:] = (Lv * rho * (t2 - t1)) / dt
+
+    return result
 
 def heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, p, z, dt=3600):
     # hardcoding for the middle layer.

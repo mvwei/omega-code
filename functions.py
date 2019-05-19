@@ -132,9 +132,9 @@ def calculate_second_derivative(f, axis=0, dx=1.):
 
     return out
 
-def get_coefficient_matrix(nb, shape, center_coeff=0, x_coeff=0, dx_coeff=0, dy_coeff=0, dp_coeff=0, d2x_coeff=0, d2y_coeff=0, d2p_coeff=0):
+def get_coefficient_matrix(nb, shape, center_coeff=0, dx_coeff=0, dy_coeff=0, dp_coeff=0, d2x_coeff=0, d2y_coeff=0, d2p_coeff=0):
     """
-    Generate the coefficient matrix.
+    Generate the coefficient matrix. Expects a three-dimensional shape.
 
     If we have any d2 coefficients, we assume that we have boundary conditions 2 above,
     2 below, and 2 along the sides.
@@ -170,10 +170,11 @@ def get_coefficient_matrix(nb, shape, center_coeff=0, x_coeff=0, dx_coeff=0, dy_
             for x in range(nb, nx-nb):
                 arr = np.zeros((ntotal))
 
+                # center point
                 point = get_row_from_coordinate(z, y, x)
 
                 if callable(center_coeff):
-                    my_coeff = center_coeff(z, y, x)
+                    arr[point] = center_coeff(z, y, x)
                 else:
                     arr[point] = center_coeff
 
@@ -276,12 +277,10 @@ def get_rhs(boundary_values, calculated_values, nb):
     min_datapoints = 2 * nb + 1
 
     if np.ndim(boundary_values) > 3:
-        print("Do not pass time in as a dimension.")
-        return
+        raise ValueError("Do not pass time in as a dimension.")
 
     if any(npoints < min_datapoints for npoints in np.shape(boundary_values)):
-        print("Insufficient boundary layers provided, please provide at least %s." % min_datapoints)
-        return
+        raise ValueError("Insufficient boundary layers provided, please provide at least %s." % min_datapoints)
 
     result_arr = np.copy(boundary_values)
 

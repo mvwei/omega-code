@@ -58,57 +58,77 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
 
     return np.reshape(results, (levels.size, lat.size, lon.size))
 
-def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
+def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, low_data, nb=2, points_around_low=5):
     def qg_helper(calc_values, omega, dx, dy, dp):
+        """
+        This is the function that actually implements the solver. It is broken
+        into two parts: the coefficient matrix generation, and the result matrix
+        generation. All of these functions are for the purpose of
+        generating these functions.
+        """
         sigma = 0.000002      # units are m2Pa-2s-2
         f0 = 0.0001           # units are s-1
 
         def get_d2x_coeff(z, y, x):
-            distance = dx[y]
+            """
+            Only used if nb==2.
+            """
+            x_dist = dx[y]
 
-            return (-1./12.) * sigma/distance**2
+            return (-1./12.) * sigma / x_dist**2
 
         def get_dx_coeff(z, y, x):
-            distance = dx[y]
+            x_dist = dx[y]
 
-            return (4./3.) * sigma / distance**2
+            if nb == 2:
+                return (4./3.) * sigma / x_dist**2
+
+            elif nb == 1:
+                return sigma / x_dist**2
 
         def get_center_coeff(z, y, x):
-            x_distance = dx[y]
+            x_dist = dx[y]
 
-            x_coeff = -(5./2.) * sigma / x_distance**2
-            y_coeff = -(5./2.) * sigma / dy**2
-            p_coeff = -(5./2.) * f0**2 / dp**2
+            if nb == 2:
+                x_coeff = -(5./2.) * sigma / x_dist**2
+                y_coeff = -(5./2.) * sigma / dy**2
+                p_coeff = -(5./2.) * f0**2 / dp**2
+
+            elif nb == 1:
+                x_coeff = -2 * sigma / x_dist**2
+                y_coeff = -2 * sigma / dy**2
+                p_coeff = -2 * f0**2 / dp**2
 
             return x_coeff + y_coeff + p_coeff
 
-        b = get_rhs(boundary_values=omega, calculated_values=calc_values, nb=1)
+        b = get_rhs(boundary_values=omega, calculated_values=calc_values, nb=nb)
 
-        # A = get_coefficient_matrix(
-        #     nb=2,
-        #     shape=calc_values.shape,
-        #     center_coeff=get_center_coeff,
-        #     dx_coeff=get_dx_coeff,
-        #     d2x_coeff=get_d2x_coeff,
-        #     dy_coeff=(4./3.) * (sigma / dy**2),
-        #     d2y_coeff=(-1./12.) * (sigma / dy**2),
-        #     dp_coeff=(4./3.) * (f0**2 / dp**2),
-        #     d2p_coeff=(-1./12.) * (f0**2 / dp**2),
-        # )
-        #
-
-        avg_dx = np.mean(dx)
-
-        A = get_coefficient_matrix(
-            nb=1,
-            shape=calc_values.shape,
-            center_coeff=(-2*(sigma/avg_dx**2 + sigma/dy**2 + f0**2/dp**2)),
-            dx_coeff=(sigma/avg_dx**2),
-            dy_coeff=(sigma/dy**2),
-            dp_coeff=(f0**2/dp**2),
-        )
+        if nb == 2:
+            A = get_coefficient_matrix(
+                nb=nb,
+                shape=calc_values.shape,
+                center_coeff=get_center_coeff,
+                dx_coeff=get_dx_coeff,
+                d2x_coeff=get_d2x_coeff,
+                dy_coeff=(4./3.) * (sigma / dy**2),
+                d2y_coeff=(-1./12.) * (sigma / dy**2),
+                dp_coeff=(4./3.) * (f0**2 / dp**2),
+                d2p_coeff=(-1./12.) * (f0**2 / dp**2),
+            )
+        elif nb == 1:
+            A = get_coefficient_matrix(
+                nb=nb,
+                shape=calc_values.shape,
+                center_coeff=get_center_coeff,
+                dx_coeff=get_dx_coeff,
+                dy_coeff=(sigma/dy**2),
+                dp_coeff=(f0**2/dp**2),
+            )
 
         return np.linalg.solve(A, b)
+
+    if nb != 2 and nb != 1:
+        raise ValueError("nb should either be 1 or 2.")
 
     shape = u.shape
 
@@ -129,47 +149,142 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels):
     qv_f = ScalarField(qv, c.dx, c.dy)
 
     # Calculate Q.
+    print("Calculating Q components")
     q1 = (-R / plvl) * (u_f.get_ddx() * t_f.get_ddx() + v_f.get_ddx() * t_f.get_ddy())
     q2 = (-R / plvl) * (u_f.get_ddy() * t_f.get_ddx() + v_f.get_ddy() * t_f.get_ddy())
 
-    # HEAT TERM TIME
+    print("Calculating surface sensible heat flux")
     # Calculate heat contribution form surface sensible heat flux.
-    H_surface_sensible_flux = np.zeros(shape)
-    H_surface_sensible_flux[:, 1] = heating_rate_from_surface_flux(shf, height, levels)
+    H_surface_sensible_flux = ScalarField(
+        heating_rate_from_surface_flux(shf, height, levels),
+        c.dx,
+        c.dy
+    )
 
+    print("Calculating surface latent heat flux")
     # # Calculate heat contribution from surface latent heat flux.
-    H_surface_latent_flux = np.zeros(shape)
-    H_surface_latent_flux[:, 1] = heating_rate_from_surface_flux(lhf, height, levels)
+    H_surface_latent_flux = ScalarField(
+        heating_rate_from_surface_flux(lhf, height, levels),
+        c.dx,
+        c.dy
+    )
 
-    # Calculate horizontal latent heat flux (advection of moisture).
-    # H_latent_horizontal_flux = heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, levels, height, dt)
-
-    # Calculate latent heat contribution from change in vapor over time.
-    # It will be zero for the first time step, because we don't have any previous
-    # moisture data. This is fine because we're throwing out the first data,
-    # anyhow.
-    H_latent_phase_change_flux = np.zeros(shape)
-    H_latent_phase_change_flux[1:] = heating_rate_from_moisture_change(qv)
+    # Latent phase change!
+    print("Calculating phase change latent heat flux")
+    H_latent_phase_change_flux = ScalarField(
+        heating_rate_from_moisture_change(qv),
+        c.dx,
+        c.dy
+    )
 
     # all our forcing values! Here we are, at long last.
     Q_vector = VectorField(q1, q2, c.dx, c.dy)
 
-    H_sflx_f = ScalarField(H_surface_sensible_flux, c.dx, c.dy)
-    H_lflx_f = ScalarField(H_surface_latent_flux, c.dx, c.dy)
-    # H_lhor_f = ScalarField(H_latent_horizontal_flux, c.dx, c.dy)
-    H_lphase_f = ScalarField(H_latent_phase_change_flux, c.dx, c.dy)
-
+    # Time to calculate the variables in our equation! Exciting!
+    print("Calculating Q Divergence")
     q_terms = - 2 * Q_vector.divergence()
 
-    heat_terms = - (R / (plvl * cp)) * (
-        H_sflx_f.get_laplacian() +
-        H_lflx_f.get_laplacian() +
-        H_lphase_f.get_laplacian()
-    )
+    print("Calculating heat laplacians")
+    sfc_sensible = - (R / (plvl * cp)) * H_surface_sensible_flux.get_laplacian()
+    sfc_latent = - (R / (plvl * cp)) * H_surface_latent_flux.get_laplacian()
+    latent_phase = - (R / (plvl * cp)) * H_latent_phase_change_flux.get_laplacian()
 
-    calculated_values = q_terms + heat_terms
+    heat_terms = sfc_sensible + sfc_latent + latent_phase
 
-    # # let's just do the first time slice right now
-    results = qg_helper(calculated_values[1], omega[1], c.dx, c.dy, c.dp)
+    total_values = q_terms + heat_terms
 
-    return np.reshape(results, (levels.size, lat.size, lon.size))
+    # get boundaries, if at all.
+    boundaries = omega
+
+    # some indexing stuff
+    vertical_midpoint = int((levels.size-1)/2)
+    meridional_midpoint = int((lat.size-1)/2)
+    zonal_midpoint = int((lon.size-1)/2)
+
+    low_lat_data = low_data["lat"]
+    low_lon_data = low_data["lon"]
+    low_slp_data = low_data["slp"]
+
+    with open('output.txt', 'w') as f:
+
+        f.write("Time,SLP,lat,lon,closest lat,closest lon,WRF omega,Calculated omega,Q omega,Surface Sensible omega,Surface Latent omega,Latent phase omega\n")
+
+        for time_idx in range(1, u.XTIME.size):
+            time = u.XTIME[time_idx].values
+
+            print("Calculating for %s (%s out of %s)" % (time, time_idx, u.XTIME.size - 1))
+
+            # get the calculated arrays. We're just going to slice to get the
+            # things we want, we're not going to run different boundaries each time.
+            # That'd suck.
+            #
+            # The vast majority of the code below is for getting the values around
+            # the low.
+            low_lat = low_lat_data[time_idx]
+            low_lon = low_lon_data[time_idx]
+            low_slp = low_slp_data[time_idx]
+
+            if np.isnan(low_lat) or np.isnan(low_lon) or np.isnan(low_slp):
+                continue
+
+            closest_lat = lat.sel(lat=low_lat, method="nearest")
+            closest_lon = lon.sel(lon=low_lon, method="nearest")
+
+            closest_lat_idx = np.where(lat==closest_lat)[0][0]
+            closest_lon_idx = np.where(lon==closest_lon)[0][0]
+
+            # sanity check to make sure that we don't go over
+            if (
+                closest_lat_idx - points_around_low < 0 or
+                closest_lat_idx + points_around_low + 1 >= shape[-2] or
+                closest_lon_idx - points_around_low < 0 or
+                closest_lon_idx + points_around_low + 1 >= shape[-1]
+            ):
+                raise Exception("We have gone out of bounds! Considering reducing points_around_low.")
+
+            calc_slice = (
+                time_idx,
+                slice(None),
+                slice(closest_lat_idx - points_around_low, closest_lat_idx + points_around_low + 1),
+                slice(closest_lon_idx - points_around_low, closest_lon_idx + points_around_low + 1),
+            )
+
+            calc_arr = [
+                total_values[calc_slice],
+                q_terms[calc_slice],
+                sfc_sensible[calc_slice],
+                sfc_latent[calc_slice],
+                latent_phase[calc_slice]
+            ]
+
+            boundary = omega[calc_slice]
+
+            results = []
+
+            for arr in calc_arr:
+                calculated = qg_helper(arr, boundary, c.dx, c.dy, c.dp)
+                reshaped = np.reshape(
+                    calculated,
+                    (levels.size, points_around_low * 2 + 1, points_around_low * 2 + 1)
+                )
+                result = reshaped[vertical_midpoint, points_around_low, points_around_low]
+
+                results.append(str(result))
+
+            # this is the omega we're basing off of!
+            wrf_omega = omega[time_idx, vertical_midpoint, closest_lat_idx, closest_lon_idx]
+
+            float_formatter = lambda x: "%.3f" % x
+
+            context_data = [
+                str(time),
+                float_formatter(low_slp),
+                float_formatter(low_lat),
+                float_formatter(low_lon),
+                float_formatter(closest_lat.values),
+                float_formatter(closest_lon.values),
+                str(wrf_omega.values),
+            ]
+
+            row = context_data + results
+            f.write(",".join(row) + "\n")
