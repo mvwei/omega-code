@@ -1,5 +1,6 @@
 import numpy as np
 import pandas
+from classes import ScalarField
 
 """
 For model-specific functions. Calculating things like distances,
@@ -150,3 +151,26 @@ def heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, p, z, dt=3600):
 
     return heat_rate
 
+def w_friction(u, v, temp, dx, dy):
+    """
+    u - zonal wind speed at surface
+    v - meridional wind speed at surface
+    t - temperature at surface
+    """
+    R = 287.04    # units are J/kgK
+    f = 0.0001    # units are s-1
+
+    # density at 1000 hPa. We're assuming that the surface winds are
+    # at 1000 hPa, for simplicity.
+    density = 100000 / (R * temp)
+
+    speed = np.sqrt(u*u + v*v)
+
+    # u * density is an approximation of momentum flux
+    tau_u_values = (u * density) * u / speed
+    tau_v_values = (v * density) * v / speed
+
+    tau_u = ScalarField(tau_u_values, dx, dy)
+    tau_v = ScalarField(tau_v_values, dx, dy)
+
+    return (1 / (density * f)) * (tau_v.get_ddx() - tau_u.get_ddy())

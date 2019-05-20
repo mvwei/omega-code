@@ -17,6 +17,7 @@ from helpers import (
     heating_rate_from_surface_flux,
     heating_rate_from_moisture_change,
     heating_rate_from_horizontal_flux,
+    w_friction,
 )
 
 def run_continuity(u, v, omega, lat, lon, levels, w):
@@ -58,7 +59,7 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
 
     return np.reshape(results, (levels.size, lat.size, lon.size))
 
-def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, low_data, nb=2, points_around_low=5):
+def run_qg(u, v, omega, temp, qv, lhf, shf, height, u10, v10, t2, lat, lon, levels, low_data, nb=2, points_around_low=5):
     def qg_helper(calc_values, omega, dx, dy, dp):
         """
         This is the function that actually implements the solver. It is broken
@@ -139,7 +140,7 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, low_data, 
     R = 287.05            # units are J/kgK
     cp = 1004.            # units are J/kgK
 
-    # Generate the coordinate field.
+    # # Generate the coordinate field.
     c = CoordinateField(lat, lon, great_circle_distance, levels)
 
     # Let's get some fields.
@@ -196,6 +197,11 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, low_data, 
     # get boundaries, if at all.
     boundaries = omega
 
+    if nb == 1:
+        print("Calculating w friction")
+        w_fric = w_friction(u10, v10, t2, c.dx, c.dy)
+        boundaries[:, 0] = w_fric[:]
+
     # some indexing stuff
     vertical_midpoint = int((levels.size-1)/2)
     meridional_midpoint = int((lat.size-1)/2)
@@ -205,6 +211,10 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, low_data, 
     low_lon_data = low_data["lon"]
     low_slp_data = low_data["slp"]
 
+    # this is where the solving begins. For each time step:
+    # 1. Get the area around the low
+    # 2. Solve for the area around the low for multiple "b" in Ax=b
+    # 3. Print out.
     with open('output.txt', 'w') as f:
 
         f.write("Time,SLP,lat,lon,closest lat,closest lon,WRF omega,Calculated omega,Q omega,Surface Sensible omega,Surface Latent omega,Latent phase omega\n")
@@ -257,7 +267,7 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, lat, lon, levels, low_data, 
                 latent_phase[calc_slice]
             ]
 
-            boundary = omega[calc_slice]
+            boundary = boundaries[calc_slice]
 
             results = []
 

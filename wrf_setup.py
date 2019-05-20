@@ -15,8 +15,8 @@ from helpers import (
 f = xr.open_dataset('../data/2013.11.18_regrid.nc')
 low_file = pd.read_csv("../data/PL_2013-11-18-0600_20-4km_stormtrack1.csv")
 
-nb = 2
-points_around_low=15
+nb = 1
+points_around_low = 5
 
 # parse the file to get only the layers we want.
 if nb == 2:
@@ -52,7 +52,7 @@ low_data = {
 
 omega = w_to_omega(w, q, temp, levels)
 
-run_qg(u, v, omega, temp, q, lh, hfx, z, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
+run_qg(u, v, omega, temp, q, lh, hfx, z, u10, v10, t2, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
 
 # results = run_continuity(u, v, omega, lat, lon, levels, w)
 
