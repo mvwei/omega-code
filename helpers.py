@@ -58,14 +58,19 @@ def moist_air_density(qv, temp, p):
     rgas = 287.04   # J/K/kg
     eps = 0.622
 
-    # get ready to have this guy as a constant along the pressure axis, which is
-    # either axis 0 or 1 depending on whether or not we're passing in time.
-    try:
-        # if it's a numpy array, this will succeed.
-        # If it's a data array, this will fail.
-        plvl = p[:, np.newaxis, np.newaxis]
-    except IndexError:
-        plvl = p.values[:, np.newaxis, np.newaxis]
+    if np.shape(p) != np.shape(temp):
+        # get ready to have this guy as a constant along the pressure axis, which is
+        # either axis 0 or 1 depending on whether or not we're passing in time.
+        try:
+            # if it's a numpy array, this will succeed.
+            # If it's a data array, this will fail.
+            plvl = p[:, np.newaxis, np.newaxis]
+        except IndexError:
+            plvl = p.values[:, np.newaxis, np.newaxis]
+    else:
+        # if we have pressure values for everywhere along the grid.
+        # This will be most useful on the surface.
+        plvl = p
 
     # P/RT * (1 + qv) / (1 + 1/eps * qv), except with the right part multiplied
     # by eps/eps
@@ -99,10 +104,12 @@ def omega_to_w(omega, qv, temp, p):
 
     return omega / (-g * density)
 
-def heating_rate_from_surface_flux(sflx, height, plvl, density=1.225):
+def heating_rate_from_surface_flux(sflx, height, plvl, q2, t2, psfc):
     # hardcoding for now. We only want surface flux to be
     # on the lower level calculations. Should be 0 for upper level (~500 hPa)
     # calculations.
+    density = moist_air_density(q2, t2, psfc)
+
     result = np.zeros(height.shape)
 
     mid_layer = int((len(plvl) - 1)/2)
@@ -116,18 +123,18 @@ def heating_rate_from_surface_flux(sflx, height, plvl, density=1.225):
 
     return result
 
-def heating_rate_from_moisture_change(qv, dt=3600):
-    # Calculate latent heat contribution from change in vapor over time.
+def heating_rate_from_moisture_change(qc, dt=3600):
+    # Calculate latent heat contribution from change in cloud vapor over time.
     # It will be zero for the first time step, because we don't have any previous
     # moisture data. This is fine because we're throwing out the first data,
     # anyhow.
     Lv = 2500000.   # units are J/kg
     rho = 1.0687    # units are kg/m^3
 
-    result = np.zeros(qv.shape)
+    result = np.zeros(qc.shape)
 
-    t2 = qv[1:].values
-    t1 = qv[:-1].values
+    t2 = qc[1:].values
+    t1 = qc[:-1].values
 
     result[1:] = (Lv * rho * (t2 - t1)) / dt
 
@@ -151,7 +158,7 @@ def heating_rate_from_horizontal_flux(u_f, v_f, qv_f, temp, p, z, dt=3600):
 
     return heat_rate
 
-def w_friction(u, v, temp, dx, dy):
+def w_friction(u10, v10, ust, q2, t2, psfc, dx, dy):
     """
     u - zonal wind speed at surface
     v - meridional wind speed at surface
@@ -160,9 +167,7 @@ def w_friction(u, v, temp, dx, dy):
     R = 287.04    # units are J/kgK
     f = 0.0001    # units are s-1
 
-    # density at 1000 hPa. We're assuming that the surface winds are
-    # at 1000 hPa, for simplicity.
-    density = 100000 / (R * temp)
+    density = moist_air_density(q2, t2, psfc)
 
     speed = np.sqrt(u*u + v*v)
 

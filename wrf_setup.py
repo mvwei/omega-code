@@ -34,6 +34,7 @@ v = f.V
 w = f.W
 temp = f.TK
 q = f.Q
+q_c = f.Qcl
 z = f.Z
 
 # surface variables
@@ -43,6 +44,7 @@ u10 = f.U10
 v10 = f.V10
 q2 = f.Q2
 t2 = f.T2
+psfc = f.PSFC
 
 low_data = {
     "lat": low_file["Latitude"].values,
@@ -52,30 +54,5 @@ low_data = {
 
 omega = w_to_omega(w, q, temp, levels)
 
-run_qg(u, v, omega, temp, q, lh, hfx, z, u10, v10, t2, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
+run_qg(u, v, omega, temp, q, q_c, lh, hfx, z, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
 
-# results = run_continuity(u, v, omega, lat, lon, levels, w)
-
-# mid_layer = int((len(levels) - 1)/2)
-
-# test_slice = (1, mid_layer, 5, slice(None))
-
-# print("-----------------OMEGA-----------------")
-# print(omega[test_slice].values)
-
-# print("-----------------CALC-----------------")
-# print(results[test_slice[1:]])
-
-# Things we want in the output nc file (we want output file so we can reaccess
-# the data without having to rerun the code):
-#
-# lat
-# lon
-# pressure levels -- 850, 500
-# omega_q
-# omega_sufrace_latent
-# omega_surface_sensible
-# omega_latent_horizontal
-# omega_latent_phrase_change
-#
-# lat-lon of low

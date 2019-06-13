@@ -59,7 +59,7 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
 
     return np.reshape(results, (levels.size, lat.size, lon.size))
 
-def run_qg(u, v, omega, temp, qv, lhf, shf, height, u10, v10, t2, lat, lon, levels, low_data, nb=2, points_around_low=5):
+def run_qg(u, v, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=2, points_around_low=5):
     def qg_helper(calc_values, omega, dx, dy, dp):
         """
         This is the function that actually implements the solver. It is broken
@@ -151,13 +151,13 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, u10, v10, t2, lat, lon, leve
 
     # Calculate Q.
     print("Calculating Q components")
-    q1 = (-R / plvl) * (u_f.get_ddx() * t_f.get_ddx() + v_f.get_ddx() * t_f.get_ddy())
-    q2 = (-R / plvl) * (u_f.get_ddy() * t_f.get_ddx() + v_f.get_ddy() * t_f.get_ddy())
+    q_vector_i = (-R / plvl) * (u_f.get_ddx() * t_f.get_ddx() + v_f.get_ddx() * t_f.get_ddy())
+    q_vector_j = (-R / plvl) * (u_f.get_ddy() * t_f.get_ddx() + v_f.get_ddy() * t_f.get_ddy())
 
     print("Calculating surface sensible heat flux")
     # Calculate heat contribution form surface sensible heat flux.
     H_surface_sensible_flux = ScalarField(
-        heating_rate_from_surface_flux(shf, height, levels),
+        heating_rate_from_surface_flux(shf, height, levels, q2, t2, psfc),
         c.dx,
         c.dy
     )
@@ -165,7 +165,7 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, u10, v10, t2, lat, lon, leve
     print("Calculating surface latent heat flux")
     # # Calculate heat contribution from surface latent heat flux.
     H_surface_latent_flux = ScalarField(
-        heating_rate_from_surface_flux(lhf, height, levels),
+        heating_rate_from_surface_flux(lhf, height, levels, q2, t2, psfc),
         c.dx,
         c.dy
     )
@@ -173,20 +173,21 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, u10, v10, t2, lat, lon, leve
     # Latent phase change!
     print("Calculating phase change latent heat flux")
     H_latent_phase_change_flux = ScalarField(
-        heating_rate_from_moisture_change(qv),
+        heating_rate_from_moisture_change(qc),
         c.dx,
         c.dy
     )
 
     # all our forcing values! Here we are, at long last.
-    Q_vector = VectorField(q1, q2, c.dx, c.dy)
+    Q_vector = VectorField(q_vector_i, q_vector_j, c.dx, c.dy)
 
     # Time to calculate the variables in our equation! Exciting!
     print("Calculating Q Divergence")
     q_terms = - 2 * Q_vector.divergence()
 
     print("Calculating heat laplacians")
-    sfc_sensible = - (R / (plvl * cp)) * H_surface_sensible_flux.get_laplacian()
+    # sfc_sensible = - (R / (plvl * cp)) * H_surface_sensible_flux.get_laplacian()
+    sfc_sensible = np.zeros(H_surface_sensible_flux.values.shape)
     sfc_latent = - (R / (plvl * cp)) * H_surface_latent_flux.get_laplacian()
     latent_phase = - (R / (plvl * cp)) * H_latent_phase_change_flux.get_laplacian()
 
@@ -199,7 +200,8 @@ def run_qg(u, v, omega, temp, qv, lhf, shf, height, u10, v10, t2, lat, lon, leve
 
     if nb == 1:
         print("Calculating w friction")
-        w_fric = w_friction(u10, v10, t2, c.dx, c.dy)
+        w_fric = w_friction(u10, v10, ust, q2, t2, psfc, c.dx, c.dy)
+        omega_fric = w_to_omega(w_fric, q2, t2, psfc)
         boundaries[:, 0] = w_fric[:]
 
     # some indexing stuff
