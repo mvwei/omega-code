@@ -1,4 +1,5 @@
 import numpy as np
+import xarray as xr
 from classes import (
     ScalarField,
     VectorField,
@@ -59,7 +60,12 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
 
     return np.reshape(results, (levels.size, lat.size, lon.size))
 
-def run_qg(u, v, ust, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=2, points_around_low=5):
+def run_qg(u, v, ust, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, psfc, lat, lon, levels, low_data,
+    nb=2,
+    points_around_low=5,
+    generate_var_output=False,
+    filename="output.txt"
+):
     def qg_helper(calc_values, omega, dx, dy, dp):
         """
         This is the function that actually implements the solver. It is broken
@@ -186,8 +192,8 @@ def run_qg(u, v, ust, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, p
     q_terms = - 2 * Q_vector.divergence()
 
     print("Calculating heat laplacians")
-    # sfc_sensible = - (R / (plvl * cp)) * H_surface_sensible_flux.get_laplacian()
-    sfc_sensible = np.zeros(H_surface_sensible_flux.values.shape)
+    sfc_sensible = - (R / (plvl * cp)) * H_surface_sensible_flux.get_laplacian()
+    # sfc_sensible = np.zeros(H_surface_sensible_flux.values.shape)
     sfc_latent = - (R / (plvl * cp)) * H_surface_latent_flux.get_laplacian()
     latent_phase = - (R / (plvl * cp)) * H_latent_phase_change_flux.get_laplacian()
 
@@ -204,6 +210,116 @@ def run_qg(u, v, ust, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, p
         omega_fric = w_to_omega(w_fric, q2, t2, psfc)
         boundaries[:, 0] = w_fric[:]
 
+
+    if generate_var_output:
+        mid_layer = int((len(u.lev) - 1)/2)
+
+        outfile = xr.Dataset()
+
+        outfile['XTIME'] = u.XTIME
+        outfile['lev'] = u.lev
+        outfile['lat'] = u.lat
+        outfile['lon'] = u.lon
+
+        outfile['Q1'] = xr.DataArray(
+            q_vector_i,
+            dims=['XTIME', 'lev', 'lat', 'lon'],
+            attrs={
+                'description': "The i component of the Q vector."
+            }
+        )
+
+        outfile['Q2'] = xr.DataArray(
+            q_vector_j,
+            dims=['XTIME', 'lev', 'lat', 'lon'],
+            attrs={
+                'description': "The j component of the Q vector."
+            }
+        )
+
+        outfile['DIVQ'] = xr.DataArray(
+            q_terms,
+            dims=['XTIME', 'lev', 'lat', 'lon'],
+            attrs={
+                'description': "-2 * div(Q)"
+            }
+        )
+
+        outfile['LATENT_PHASE_CHANGE'] = xr.DataArray(
+            H_latent_phase_change_flux.values,
+            dims=['XTIME', 'lev', 'lat', 'lon'],
+            attrs={
+                'description': "d(Qc)/dt * rho * Lv. See heating_rate_from_moisture_change in helpers.py."
+            }
+        )
+
+        outfile['DELSQ_LATENT_PHASE_CHANGE'] = xr.DataArray(
+            latent_phase,
+            dims=['XTIME', 'lev', 'lat', 'lon'],
+            attrs={
+                'description': "(-R / (p * cp)) * delsq(LATENT_PHASE_CHANGE)"
+            }
+        )
+
+        # surface variables
+        outfile['W_FRIC'] = xr.DataArray(
+            w_fric,
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "Calculated from w_friction in helpers.py."
+            }
+        )
+
+        outfile['OMG_FRIC'] = xr.DataArray(
+            omega_fric,
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "Calculated from W_FRIC."
+            }
+        )
+
+        outfile['OMG_TOP'] = xr.DataArray(
+            omega[:, -1],
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "Omega, calculated from the W provided by WRF."
+            }
+        )
+
+        outfile['HEAT_FROM_LATENT_FLUX'] = xr.DataArray(
+            H_surface_latent_flux.values[:, mid_layer],
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "Heating rate from surface latent heat flux. (sflx) / (density * z)"
+            }
+        )
+
+        outfile['HEAT_FROM_SENS_FLUX'] = xr.DataArray(
+            H_surface_sensible_flux.values[:, mid_layer],
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "Heating rate from surface sensible heat flux. (sflx) / (density * z)"
+            }
+        )
+
+        outfile['DELSQ_HEAT_FROM_LATENT_FLUX'] = xr.DataArray(
+            sfc_sensible[:, mid_layer],
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "(-R / (p * cp)) * delsq(HEAT_FROM_LATENT_FLUX)"
+            }
+        )
+
+        outfile['DELSQ_HEAT_FROM_SENS_FLUX'] = xr.DataArray(
+            sfc_latent[:, mid_layer],
+            dims=['XTIME', 'lat', 'lon'],
+            attrs={
+                'description': "(-R / (p * cp)) * delsq(HEAT_FROM_LATENT_FLUX)"
+            }
+        )
+
+        outfile.to_netcdf("../data/2013.11.18_calc_data_dump.nc")
+
     # some indexing stuff
     vertical_midpoint = int((levels.size-1)/2)
     meridional_midpoint = int((lat.size-1)/2)
@@ -213,11 +329,13 @@ def run_qg(u, v, ust, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, p
     low_lon_data = low_data["lon"]
     low_slp_data = low_data["slp"]
 
+
+    print("Beginning solver")
     # this is where the solving begins. For each time step:
     # 1. Get the area around the low
     # 2. Solve for the area around the low for multiple "b" in Ax=b
     # 3. Print out.
-    with open('output.txt', 'w') as f:
+    with open(filename, 'w') as f:
 
         f.write("Time,SLP,lat,lon,closest lat,closest lon,WRF omega,Calculated omega,Q omega,Surface Sensible omega,Surface Latent omega,Latent phase omega\n")
 

@@ -17,6 +17,7 @@ low_file = pd.read_csv("../data/PL_2013-11-18-0600_20-4km_stormtrack1.csv")
 
 nb = 1
 points_around_low = 5
+filename = "output.txt"
 
 # parse the file to get only the layers we want.
 if nb == 2:
@@ -55,5 +56,10 @@ low_data = {
 
 omega = w_to_omega(w, q, temp, levels)
 
-run_qg(u, v, ust, omega, temp, q, q_c, lh, hfx, z, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
+run_qg(u, v, ust, omega, temp, q, q_c, lh, hfx, z, u10, v10, t2, q2, psfc, lat, lon, levels, low_data,
+    nb=nb,
+    points_around_low=points_around_low,
+    generate_var_output=False,
+    filename=filename,
+)
 
