@@ -169,11 +169,14 @@ def w_friction(u10, v10, ust, q2, t2, psfc, dx, dy):
 
     density = moist_air_density(q2, t2, psfc)
 
-    speed = np.sqrt(u*u + v*v)
+    speed = np.sqrt(u10*u10 + v10*v10)
+
+    uflxp = density * (ust**2) * u10 / speed
+    vflxp = density * (ust**2) * v10 / speed
 
     # u * density is an approximation of momentum flux
-    tau_u_values = (u * density) * u / speed
-    tau_v_values = (v * density) * v / speed
+    tau_u_values = uflxp * u10 / speed
+    tau_v_values = vflxp * v10 / speed
 
     tau_u = ScalarField(tau_u_values, dx, dy)
     tau_v = ScalarField(tau_v_values, dx, dy)

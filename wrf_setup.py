@@ -32,6 +32,7 @@ levels = f.lev * 100
 u = f.U
 v = f.V
 w = f.W
+ust = f.UST
 temp = f.TK
 q = f.Q
 q_c = f.Qcl
@@ -54,5 +55,5 @@ low_data = {
 
 omega = w_to_omega(w, q, temp, levels)
 
-run_qg(u, v, omega, temp, q, q_c, lh, hfx, z, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
+run_qg(u, v, ust, omega, temp, q, q_c, lh, hfx, z, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=nb, points_around_low=points_around_low)
 

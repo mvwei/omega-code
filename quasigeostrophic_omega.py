@@ -59,7 +59,7 @@ def run_continuity(u, v, omega, lat, lon, levels, w):
 
     return np.reshape(results, (levels.size, lat.size, lon.size))
 
-def run_qg(u, v, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=2, points_around_low=5):
+def run_qg(u, v, ust, omega, temp, qv, qc, lhf, shf, height, u10, v10, t2, q2, psfc, lat, lon, levels, low_data, nb=2, points_around_low=5):
     def qg_helper(calc_values, omega, dx, dy, dp):
         """
         This is the function that actually implements the solver. It is broken
